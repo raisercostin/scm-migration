@@ -27,15 +27,15 @@ function migrateProject(){
 
         #choose one of the following
         #svndumpfilter --drop-empty-revs --renumber-revs exclude trunk/www < $project.dump > $project.filtered.dump
-        cp $svnProjectName.dump $svnProjectName-filtered.dump
-        mv $svnProjectName $svnProjectName.todel
+        #cp $svnProjectName.dump $svnProjectName-filtered.dump
+        #mv $svnProjectName $svnProjectName.todel
 
 
-        svnProjectNameFiltered=$svnProjectName-filtered
-        svnProjectPathFiltered=file://`pwd`/$svnProjectNameFiltered
-        svnadmin create $svnProjectNameFiltered
-        svn info $svnProjectNameFiltered
-        svnadmin load $svnProjectNameFiltered < $svnProjectName-filtered.dump
+        #svnProjectNameFiltered=$svnProjectName-filtered
+        #svnProjectPathFiltered=file://`pwd`/$svnProjectNameFiltered
+        #svnadmin create $svnProjectNameFiltered
+        #svn info $svnProjectNameFiltered
+        #svnadmin load $svnProjectNameFiltered < $svnProjectName-filtered.dump
 
         #list authors
         #svn checkout $svnProjectPath $project-2
@@ -44,17 +44,15 @@ function migrateProject(){
         #git svn clone $svnProjectPath --no-metadata -A authors.txt -t tags -b branches -T trunk $project-git
 
 
-	git svn clone $svnProjectPathFiltered --prefix=origin/ --no-metadata --tags=tags --branches=branches --trunk=trunk $project.git
+	#git svn clone $svnProjectPathFiltered --prefix=origin/ --no-metadata --tags=tags --branches=branches --trunk=trunk $project.git
 
-        cd $project.git
-        git remote add origin $destProjectUrl
+        #cd $project.git
+        #git remote add origin $destProjectUrl
         
-        if [ "$shouldPush" == 'true' ]; then
-            git push --set-upstream origin master
-        fi
+        #if [ "$shouldPush" == 'true' ]; then
+        #    git push --set-upstream origin master
+        #fi
     )
 }
 
 #migrateProject mucommander https://svn.mucommander.com/mucommander/ https://github.com/raisercostin/mucommander.git
-migrateProject uumds-repo https://webgate.ec.europa.eu/CITnet/svn/UUMDS https://github.com/raisercostin/uumds/uumds-repo.git
-
