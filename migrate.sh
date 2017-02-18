@@ -7,6 +7,22 @@ function help(){
 EOL
 }
 
+#call it with: assert "-e file1.txt" File doesn't exist so error!!!!
+function assert(){
+	if [ $1 ]; then
+		#nothing. ignore
+		:
+	else
+		echo "${@:2} . Test [$1] failed."
+		exit 1
+	fi
+}
+
+function prepare(){
+	echo "compile a btter svndumpsanitizer tool from https://github.com/dsuni/svndumpsanitizer"
+	gcc svndumpsanitizer.c -o svndumpsanitizer
+}
+
 function scmImport(){
     local project srcProjectUrl
     project="$1"
@@ -34,12 +50,23 @@ function scmFilter(){
     project="$1"
     srcSvnProjectSubPath="$2"
     svnProjectName=$project-svn
+	if [ -f $svnProjectName-filtered.svndump ]; then
+		echo "[$project] scmFilter> Out file [$svnProjectName-filtered.svndump] already exists."
+	else
+		(
+			cd $project
+			echo "filter [$project] with svnProjectSubPath:[$srcSvnProjectSubPath] from: [$svnProjectName.svndump] to: [$svnProjectName-filtered.svndump]"
+			#svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
+			.././svndumpsanitizer --infile $svnProjectName.svndump --outfile $svnProjectName-filtered.svndump --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $srcSvnProjectSubPath
+		)
+	fi
+}
 
-    (
-        cd $project
-		echo "filter [$project] with svnProjectSubPath:[$srcSvnProjectSubPath] from: [$svnProjectName.svndump] to: [$svnProjectName-filtered.svndump]"
-		svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
-	)
+function scmNewFilteredSvnClean(){
+    local project newSvnProjectName
+    project="$1"
+    newSvnProjectName=$project-svn-filtered	
+	rm -rf $project/$newSvnProjectName
 }
 
 function scmNewFilteredSvn(){
@@ -48,14 +75,38 @@ function scmNewFilteredSvn(){
     newSvnProjectName=$project-svn-filtered
     svnProjectName=$project-svn
 
-    echo "[$project]> Create new filtered svn repo at [$newSvnProjectName]"
-
-    (
+    echo "[$project]$FUNCNAME> Create new filtered svn repo at [$newSvnProjectName]"
+	(
 		cd $project
-        #svnProjectPathFiltered=file://`pwd`/$newSvnProjectName
-        svnadmin create $newSvnProjectName
-        svn info $newSvnProjectName
-        svnadmin load $newSvnProjectName < $svnProjectName-filtered.svndump
+		assert "-n -e $newSvnProjectName" "Out file [$newSvnProjectName] already exists."
+
+		echo "info at http://jmsliu.com/2700/more-project-from-one-svn-repository-to-another-one.html"
+		#svnProjectPathFiltered=file://`pwd`/$newSvnProjectName
+		svnadmin create $newSvnProjectName
+		svn info $newSvnProjectName
+		svnadmin load $newSvnProjectName < $svnProjectName-filtered.svndump
+	)
+}
+
+function scmListAuthors(){
+    local project newSvnProjectName
+    project="$1"
+    newSvnProjectName=$project-svn-filtered
+    svnProjectName=$project-svn
+
+    #echo "[$project]$FUNCNAME> Extract authors from [$newSvnProjectName]"
+	(
+		cd $project
+		assert "-e $newSvnProjectName" "File [$newSvnProjectName] should exist!"
+
+		#svn checkout file://`pwd`/$newSvnProjectName $project-fresh-svn-checkout
+		#svn log $project-fresh-svn-checkout --xml | grep /author | sort -u | perl -pe 's/.>(.?)<./$1 = /' > users.txt
+		svnRepo=file://`pwd`/$newSvnProjectName
+		echo "#Users found for [$svnRepo] and lookedup in [authors-all.txt]" > authors.txt
+		svn log $svnRepo --quiet | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2" = "$2" <"$2">"}' | sort -u > authors-svn.txt
+		#lookup authors in authors-all.txt
+		join -j 1 -o 1.1 1.2 2.3 2.4 <(sort authors-svn.txt) <(sort ../authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) = unknown unknown/\1 = \1 <\1@unknwon.unknwon>/' >> authors.txt
+		cat authors.txt
 	)
 }
 
@@ -72,6 +123,7 @@ function migrateProject(){
 	
 	scmImport $project $srcProjectUrl
 	scmFilter $project $srcSvnProjectSubPath
+	scmNewFilteredSvn $project
 
     mkdir $project
     (
