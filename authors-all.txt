@@ -1,27 +1,27 @@
 #Users found for [file:///home/vagrant/work3/namek-svn/namek/namek-svn-filtered]
 #special authors
-(no author) = noone <noone@unknwon.unknwon>
-root = root <root@unknwon.unknwon>
+(no author) = noone <noone>
+root = root <root>
 
 #personal
 alexugoku = alexugoku <alexugoku@gmail.com>
-alex = alex <alex@unknwon.unknwon>
-corina = corina <corina@unknwon.unknwon>
-cristian = cristian <cristian@unknwon.unknwon>
-florin = florin <florin@unknwon.unknwon>
-george = george <george@unknwon.unknwon>
-justin = justin <justin@unknwon.unknwon>
-luci = luci <luci@unknwon.unknwon>
+alex = alex <alex>
+corina = corina <corina>
+cristian = cristian <cristian>
+florin = florin <florin>
+george = george <george>
+justin = justin <justin>
+luci = luci <luci>
 raiser = raisercostin <raisercostin@gmail.com>
 raisercostin = raisercostin <raisercostin@gmail.com>
-tpuica = tpuica <tpuica@unknwon.unknwon>
+tpuica = tpuica <tpuica>
 
 
 #mu commander from https://svn.mucommander.com/mucommander/
-arik.hadas = arik.hadas <arik.hadas@unknwon.unknwon>
-kueller = kueller <kueller@unknwon.unknwon>
-mariusz.jakubowski = mariusz.jakubowski <mariusz.jakubowski@unknwon.unknwon>
-maxence = maxence <maxence@unknwon.unknwon>
-maxence.bernard = maxence.bernard <maxence.bernard@unknwon.unknwon>
-nicolas.rinaudo = nicolas.rinaudo <nicolas.rinaudo@unknwon.unknwon>
-xavier = xavier <xavier@unknwon.unknwon>
+arik.hadas = Arik Ahadas <ahadas>
+kueller = kueller <kueller>
+mariusz.jakubowski = Mariusz Jakubowski <mariusj>
+maxence = Maxence Bernard <m4xence>
+maxence.bernard = Maxence Bernard <m4xence>
+nicolas.rinaudo = Nicolas Rinaudo <nicolas@nrinaudo.com>
+xavier = xavier <xavier>

@@ -89,26 +89,17 @@ function scmNewFilteredSvn(){
 }
 
 function scmListAuthors(){
-    local project newSvnProjectName
+    local project newSvnProjectName svnRepo svnProjectName
     project="$1"
     newSvnProjectName=$project-svn-filtered
     svnProjectName=$project-svn
+	svnRepo=file://`pwd`/$project/$project-svn-filtered
 
-    #echo "[$project]$FUNCNAME> Extract authors from [$newSvnProjectName]"
+    echo "[$project]$FUNCNAME> Extract authors from [$newSvnProjectName] and look them up in [authors-all.txt] (if exits)"
 	(
-		#cd $project
-		#assert "-e $newSvnProjectName" "File [$newSvnProjectName] should exist!"
-
-		#svn checkout file://`pwd`/$newSvnProjectName $project-fresh-svn-checkout
-		#svn log $project-fresh-svn-checkout --xml | grep /author | sort -u | perl -pe 's/.>(.?)<./$1 = /' > users.txt
-		svnRepo=file://`pwd`/$newSvnProjectName
+		cd $project
 		echo "#Users found for [$svnRepo] and lookedup in [authors-all.txt]" > authors.txt
-		#works also on remote url
-		#svn log $svnRepo --quiet | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' | sort -u > authors-svn.txt
-		#lookup authors in authors-all.txt
-		#join -j 1 -o 1.1 2.2 2.3 2.4 <(svn log $svnRepo --quiet | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' | sort -u) <(sort ../authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) = unknown unknown/\1 = \1 <\1@unknwon.unknwon>/' >> authors.txt
-		
-		svn log svn://raisercostin2.synology.me/all/projects/namek | scmExtractAuthors >> authors.txt
+		svn log $svnRepo | scmExtractAuthors >> authors.txt
 		cat authors.txt
 	)
 }
@@ -117,13 +108,22 @@ function scmListAuthors(){
 # you can extract authors with:
 # . ./migrate.sh && svn log svn://raisercostin2.synology.me/all/projects/namek | scmExtractAuthors
 function scmExtractAuthors(){
-	#join -j 1 -o 1.1 2.2 2.3 2.4 <(awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | sort -u) <(sort authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) = unknown unknown/\1 = \1 <\1@unknwon.unknwon>/'
-	#grep '|' | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | awk 'NF' | sort -u | join -j 1 -o 1.1 2.2 2.3 2.4 - <(sort authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) unknown unknown unknown/\1 = \1 <\1@unknwon.unknwon>/'
+	#inspired from here http://stackoverflow.com/questions/37488797/how-to-perform-a-key-field-lookup-in-a-file-using-bash-or-awk
+	grep '|' | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | awk 'NF' | sort -u | awk 'BEGIN{FS=" = ";OFS=","}NR==FNR{email[$1]=$2}NR>FNR{if (email[$1]) print $1" = "email[$1]; else print $1" = "$1"<"$1">";}' <( cat authors-all.txt 2> /dev/null || echo "" ) -
+}
 
-	#now there is a bug if authors are similar: raiser and raisercostin
-	#maybe improve from here http://stackoverflow.com/questions/37488797/how-to-perform-a-key-field-lookup-in-a-file-using-bash-or-awk
-	#awk 'BEGIN{FS=OFS=","}NR==FNR{a[$1]=1;b[$1]=$3;c[$1]=$6;}NR>FNR{if (a[$1]) print $1,b[$1],c[$1]; else print $1,"KEY_NOT_FOUND";}' file2 file1 > file3
-	grep '|' | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | awk 'NF' | sort -u | awk 'BEGIN{FS=" = ";OFS=","}NR==FNR{email[$1]=$2}NR>FNR{if (email[$1]) print $1" = "email[$1]; else print $1" = "$1"<"$1"@unknown.unk>";}' authors-all.txt -
+function scmGitClone(){
+    local project newSvnProjectName svnRepo svnProjectName
+    project=${1:?Project name is missing}
+    newSvnProjectName=$project-svn-filtered
+    svnProjectName=$project-svn
+	svnRepo=file://`pwd`/$project/$project-svn-filtered
+
+    echo "[$project]$FUNCNAME> Clone [$svnRepo] with authors from [$project/authors.txt] into [$project.git]"
+	(
+		cd $project
+		git svn clone $svnRepo --prefix=origin/ --no-metadata --authors-file=authors.txt --tags=tags --branches=branches --trunk=trunk $project.git
+	)
 }
 
 
@@ -140,32 +140,14 @@ function migrateProject(){
 	scmImport $project $srcProjectUrl
 	scmFilter $project $srcSvnProjectSubPath
 	scmNewFilteredSvn $project
+	scmListAuthors $project
+	scmGitClone $project
 
     mkdir $project
     (
         cd $project
-
-        #choose one of the following
-        #svndumpfilter --drop-empty-revs --renumber-revs exclude trunk/www < $project.dump > $project.filtered.dump
-		#svndumpfilter --drop-empty-revs --renumber-revs include projects/namek < $project.dump > $project.filtered.dump
-        #cp $svnProjectName.dump $svnProjectName-filtered.dump
-        #mv $svnProjectName $svnProjectName.todel
-
-
-        #svnProjectNameFiltered=$svnProjectName-filtered
-        #svnProjectPathFiltered=file://`pwd`/$svnProjectNameFiltered
-        #svnadmin create $svnProjectNameFiltered
-        #svn info $svnProjectNameFiltered
-        #svnadmin load $svnProjectNameFiltered < $svnProjectName-filtered.dump
-
-        #list authors
-        #svn checkout $svnProjectPath $project-2
-        #svn log $project-2 --quiet
-        #edit authors.txt
-        #git svn clone $svnProjectPath --no-metadata -A authors.txt -t tags -b branches -T trunk $project-git
-
-
-	#git svn clone $svnProjectPathFiltered --prefix=origin/ --no-metadata --tags=tags --branches=branches --trunk=trunk $project.git
+        #git svn clone $svnProjectPath --no-metadata --authors=authors.txt --tags=tags --branches=branches --trunk=trunk $project-git
+		#git svn clone $svnProjectPathFiltered --prefix=origin/ --no-metadata --tags=tags --branches=branches --trunk=trunk $project.git
 
         #cd $project.git
         #git remote add origin $destProjectUrl
