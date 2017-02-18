@@ -96,18 +96,34 @@ function scmListAuthors(){
 
     #echo "[$project]$FUNCNAME> Extract authors from [$newSvnProjectName]"
 	(
-		cd $project
-		assert "-e $newSvnProjectName" "File [$newSvnProjectName] should exist!"
+		#cd $project
+		#assert "-e $newSvnProjectName" "File [$newSvnProjectName] should exist!"
 
 		#svn checkout file://`pwd`/$newSvnProjectName $project-fresh-svn-checkout
 		#svn log $project-fresh-svn-checkout --xml | grep /author | sort -u | perl -pe 's/.>(.?)<./$1 = /' > users.txt
 		svnRepo=file://`pwd`/$newSvnProjectName
 		echo "#Users found for [$svnRepo] and lookedup in [authors-all.txt]" > authors.txt
-		svn log $svnRepo --quiet | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2" = "$2" <"$2">"}' | sort -u > authors-svn.txt
+		#works also on remote url
+		#svn log $svnRepo --quiet | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' | sort -u > authors-svn.txt
 		#lookup authors in authors-all.txt
-		join -j 1 -o 1.1 1.2 2.3 2.4 <(sort authors-svn.txt) <(sort ../authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) = unknown unknown/\1 = \1 <\1@unknwon.unknwon>/' >> authors.txt
+		#join -j 1 -o 1.1 2.2 2.3 2.4 <(svn log $svnRepo --quiet | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' | sort -u) <(sort ../authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) = unknown unknown/\1 = \1 <\1@unknwon.unknwon>/' >> authors.txt
+		
+		svn log svn://raisercostin2.synology.me/all/projects/namek | scmExtractAuthors >> authors.txt
 		cat authors.txt
 	)
+}
+
+
+# you can extract authors with:
+# . ./migrate.sh && svn log svn://raisercostin2.synology.me/all/projects/namek | scmExtractAuthors
+function scmExtractAuthors(){
+	#join -j 1 -o 1.1 2.2 2.3 2.4 <(awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | sort -u) <(sort authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) = unknown unknown/\1 = \1 <\1@unknwon.unknwon>/'
+	#grep '|' | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | awk 'NF' | sort -u | join -j 1 -o 1.1 2.2 2.3 2.4 - <(sort authors-all.txt) -a1 -e "unknown"|sed -r 's/^([^ ]*) unknown unknown unknown/\1 = \1 <\1@unknwon.unknwon>/'
+
+	#now there is a bug if authors are similar: raiser and raisercostin
+	#maybe improve from here http://stackoverflow.com/questions/37488797/how-to-perform-a-key-field-lookup-in-a-file-using-bash-or-awk
+	#awk 'BEGIN{FS=OFS=","}NR==FNR{a[$1]=1;b[$1]=$3;c[$1]=$6;}NR>FNR{if (a[$1]) print $1,b[$1],c[$1]; else print $1,"KEY_NOT_FOUND";}' file2 file1 > file3
+	grep '|' | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | awk 'NF' | sort -u | awk 'BEGIN{FS=" = ";OFS=","}NR==FNR{email[$1]=$2}NR>FNR{if (email[$1]) print $1" = "email[$1]; else print $1" = "$1"<"$1"@unknown.unk>";}' authors-all.txt -
 }
 
 

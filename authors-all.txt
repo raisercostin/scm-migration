@@ -1,0 +1,27 @@
+#Users found for [file:///home/vagrant/work3/namek-svn/namek/namek-svn-filtered]
+#special authors
+(no author) = noone <noone@unknwon.unknwon>
+root = root <root@unknwon.unknwon>
+
+#personal
+alexugoku = alexugoku <alexugoku@gmail.com>
+alex = alex <alex@unknwon.unknwon>
+corina = corina <corina@unknwon.unknwon>
+cristian = cristian <cristian@unknwon.unknwon>
+florin = florin <florin@unknwon.unknwon>
+george = george <george@unknwon.unknwon>
+justin = justin <justin@unknwon.unknwon>
+luci = luci <luci@unknwon.unknwon>
+raiser = raisercostin <raisercostin@gmail.com>
+raisercostin = raisercostin <raisercostin@gmail.com>
+tpuica = tpuica <tpuica@unknwon.unknwon>
+
+
+#mu commander from https://svn.mucommander.com/mucommander/
+arik.hadas = arik.hadas <arik.hadas@unknwon.unknwon>
+kueller = kueller <kueller@unknwon.unknwon>
+mariusz.jakubowski = mariusz.jakubowski <mariusz.jakubowski@unknwon.unknwon>
+maxence = maxence <maxence@unknwon.unknwon>
+maxence.bernard = maxence.bernard <maxence.bernard@unknwon.unknwon>
+nicolas.rinaudo = nicolas.rinaudo <nicolas.rinaudo@unknwon.unknwon>
+xavier = xavier <xavier@unknwon.unknwon>
