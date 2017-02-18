@@ -115,6 +115,7 @@ function scmExtractAuthors(){
 function scmGitClone(){
     local project newSvnProjectName svnRepo svnProjectName
     project=${1:?Project name is missing}
+	srcSvnProjectSubPath=${2:?Project svn subpath is missing}
     newSvnProjectName=$project-svn-filtered
     svnProjectName=$project-svn
 	svnRepo=file://`pwd`/$project/$project-svn-filtered
@@ -122,7 +123,7 @@ function scmGitClone(){
     echo "[$project]$FUNCNAME> Clone [$svnRepo] with authors from [$project/authors.txt] into [$project.git]"
 	(
 		cd $project
-		git svn clone $svnRepo --prefix=origin/ --no-metadata --authors-file=authors.txt --tags=tags --branches=branches --trunk=trunk $project.git
+		git svn clone $svnRepo$srcSvnProjectSubPath --prefix=origin/ --no-metadata --authors-file=authors.txt --tags=tags --branches=branches --trunk=trunk $project.git
 	)
 }
 
@@ -141,14 +142,10 @@ function migrateProject(){
 	scmFilter $project $srcSvnProjectSubPath
 	scmNewFilteredSvn $project
 	scmListAuthors $project
-	scmGitClone $project
+	scmGitClone $project $srcSvnProjectSubPath
 
-    mkdir $project
     (
-        cd $project
-        #git svn clone $svnProjectPath --no-metadata --authors=authors.txt --tags=tags --branches=branches --trunk=trunk $project-git
-		#git svn clone $svnProjectPathFiltered --prefix=origin/ --no-metadata --tags=tags --branches=branches --trunk=trunk $project.git
-
+		#cd $project
         #cd $project.git
         #git remote add origin $destProjectUrl
         
