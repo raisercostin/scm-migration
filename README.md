@@ -26,4 +26,8 @@
 2. 
 
 = Other projects
-https://github.com/JohnAlbin/git-svn-migrate
+- John Albin
+  - https://github.com/JohnAlbin/git-svn-migrate
+  - http://john.albin.net/git/git-svn-migrate
+  - http://john.albin.net/git/convert-subversion-to-git
+- https://bitbucket.org/atlassian/svn-migration-scripts/src
