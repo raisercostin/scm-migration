@@ -22,17 +22,18 @@ $( cat <<-EOF_USAGE
 	              Try:
 	                   scmExplain https://svn.mucommander.com/mucommander mu
 	
-	scmFullExport  - will execute the entire scmExplain migration plan
+	scmExport         - **executes** the entire scmExplain migration plan for a full svn repo
+	scmFilteredExport - **executes** the entire scmExplain migration plan for a filtered svn repo
 	
-	scmSvnClone    - clonses locally a remote svn repo
-	scmSvnDump     - dumps a local svn clone to a file using svndumpsanitizer
-	scmFilter      - filters an svn dump
+	scmSvnClone       - clonses locally a remote svn repo
+	scmSvnDump        - dumps a local svn clone to a file using svndumpsanitizer
+	scmFilter         - filters an svn dump
 	scmSvnFilteredClone - clonses locally a svn repo from an svndump
-	scmListAuthors - lists authors from a local svn
-	scmGitClone3   - clones in git from a local svn using provided authors
+	scmListAuthors    - lists authors from a local svn
+	scmGitClone       - clones in git from a local svn using provided authors
 
-	scmHelp        - this help
-	scmInit        - installs prerequisites: svn, git, git-svn, svndumpsanitizer
+	scmHelp           - this help
+	scmInit           - installs prerequisites: svn, git, git-svn, svndumpsanitizer
 
 	These are the functions defined by the script.
 	If you executed it with '. ./scm.sh' you will be able to call them directly like for example '$ scmHelp'
@@ -44,32 +45,32 @@ EOF_USAGE
 
 function scmExplain(){
 	local srcSvnUrl dest
-	srcSvnUrl=${1:?Src svn url is missing. Eg. svn://raisercostin2.synology.me/all}
-    dest=${2:?Destination name of project is missing. Eg. myprj1}
+	srcSvnUrl=${1:-https://myserver.com/someproject}
+    dest=${2:-myprj}
 	echo "
 $( cat <<-EOF_USAGE
-	------------------
-	For a partial svn
-	scmFullFilteredExport $@
-	------------------
+	---------------------------------------------------------------------------------------------------------
+	- 'scmExport $srcSvnUrl $dest' will execute the following commands:
+	
+	scmSvnClone $srcSvnUrl $dest-1.svn
+	scmListAuthors $dest-1.svn $dest-5-authors.txt
+	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
+
+	
+	- 'scmFilterdExport $srcSvnUrl $dest' will execute the following commands:
+	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmSvnDump $dest-1.svn $dest-2.svndump
 	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
 	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
 	scmListAuthors $dest-4.svn $dest-5-authors.txt
-	scmGitClone3 $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
-
-	------------------
-	For a full svn
-	scmFullExport $@
-	------------------
-	scmSvnClone $srcSvnUrl $dest-1.svn
-	scmListAuthors $dest-1.svn $dest-5-authors.txt
-	scmGitClone3 $dest-1.svn $dest-5-authors.txt $dest-6.git /namek
+	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
 
 EOF_USAGE
 )
 "
+	: ${1:?Syntax: scmExplain <srcSvnUrl> <destPrjName>}
+	: ${2:?Syntax: scmExplain <srcSvnUrl> <destPrjName>}
 }
 
 
@@ -149,7 +150,7 @@ function scmExtractAuthors(){
 	grep '|' | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | awk 'NF' | sort -u | awk 'BEGIN{FS=" = ";OFS=","}NR==FNR{email[$1]=$2}NR>FNR{if (email[$1]) print $1" = "email[$1]; else print $1" = "$1"<"$1">";}' <( cat $inAuthors 2> /dev/null || echo "" ) -
 }
 
-function scmGitClone(){
+function scmGitCloneDeprecated(){
     local project newSvnProjectName svnRepo svnProjectName
     project=${1:?Project name is missing}
 	srcSvnProjectSubPath=${2:?Project svn subpath is missing}
@@ -192,7 +193,7 @@ function scmGitClone(){
 	)
 }
 
-function scmGitClone2(){
+function scmGitClone2Deprecated(){
 	line=${@:1}
 
 	# Check for 2-field format:  Name [tab] URL
@@ -203,18 +204,22 @@ function scmGitClone2(){
 	url=$name;
 	name=`basename $url`;
 	fi
-	scmGitClone3 $name authors.txt $url $name.git
+	scmGitClone $url authors.txt $name /
 }
 
-function scmGitClone3(){
+function scmGitClone(){
 	local name authors url dest
 	name=${1:?srcSvnUrl is missing}
 	authors=${2:?authors file is missing}
 	dest=${3:?Destination is missing}
 	redefinedRoot=${4:?project root is missing}
+	
+	(
+		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
-	url=file://`pwd`/$name/namek
-	scmGitClone4 $name $authors $url $dest $redefinedRoot
+		url=file://`pwd`/$name$redefinedRoot
+		scmGitClone4 $name $authors $url $dest $redefinedRoot
+	)
 }
 function scmGitClone4(){
 	local name authors url dest
@@ -316,25 +321,24 @@ done
   )
 }
 
-function scmFullExport(){
+function scmExport(){
 	srcSvnUrl="$1"
     dest="$2"
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmListAuthors $dest-1.svn $dest-5-authors.txt
-	scmGitClone3 $dest-1.svn $dest-5-authors.txt $dest-6.git /
+	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
 
 	yell "To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt"
 }
 
 #. ./migrate.sh && (migrateProject svn://raisercostin2.synology.me/all/projects/namek namek2)
-function scmFullFilteredExport(){
+function scmFilteredExport(){
+	local srcSvnUrl dest redefinedRoot
 	srcSvnUrl="$1"
     dest="$2"
-    #srcProjectUrl="$2"
-    #destProjectUrl="$3"
-    #srcSvnProjectSubPath="$4"
-    #shouldPush="${5:-false}"
+	redefinedRoot="$3:?/namek"
+
     #echo "migrate $dest [$srcProjectUrl] => [$destProjectUrl]"
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
@@ -342,7 +346,7 @@ function scmFullFilteredExport(){
 	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
 	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
 	scmListAuthors $dest-4.svn $dest-5-authors.txt
-	scmGitClone3 $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
+	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git $redefinedRoot
 
 	yell "To clean run [ rm -rf $dest-1.svn $dest-2.svndump $dest-3.filtered-svndump $dest-4.svn $dest-5-authors.txt"
 		#cd $project
