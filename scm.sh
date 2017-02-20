@@ -1,39 +1,84 @@
 #!/bin/bash
 
-help=$( cat <<EOF_USAGE
-\tprereq: sudo apt-get -y install subversion git-svn
-\tbased on the info from http://blog.dandyer.co.uk/2010/05/17/moving-projects-from-java-net-to-github/
-EOF_USAGE
-)
-
-
+#some utilities
 internal_yell() { echo "$*" >&2; }
 yell() { internal_yell "$0>${FUNCNAME[1]}: $*"; }
 die() { internal_yell "$0>${FUNCNAME[1]}: $*"; exit 111; }
 try() { "$@" || internal_yell "cannot $*"; }
 
-#call it with: assert "-e file1.txt" File doesn't exist so error!!!!
-function assert(){
-	if [ $1 ]; then
-		#nothing. ignore
-		:
-	else
-		echo "${@:2} . Test [$1] failed." >&2
-		exit 1
-	fi
-}
 
-function prepare(){
+function scmInit(){
+	sudo apt-get -y install subversion git-svn
 	echo "compile a btter svndumpsanitizer tool from https://github.com/dsuni/svndumpsanitizer" >&2
 	gcc svndumpsanitizer.c -o svndumpsanitizer
 }
 
+
+function scmHelp(){
+	echo "
+$( cat <<-EOF_USAGE
+	---------------------------------------------------------------------------------------------------------
+	scmExplain  - prints a suggested plan for migration for your repository. Highly recommended.
+	              Try:
+	                   scmExplain https://svn.mucommander.com/mucommander mu
+	
+	scmFullExport  - will execute the entire scmExplain migration plan
+	
+	scmSvnClone    - clonses locally a remote svn repo
+	scmSvnDump     - dumps a local svn clone to a file using svndumpsanitizer
+	scmFilter      - filters an svn dump
+	scmSvnFilteredClone - clonses locally a svn repo from an svndump
+	scmListAuthors - lists authors from a local svn
+	scmGitClone3   - clones in git from a local svn using provided authors
+
+	scmHelp        - this help
+	scmInit        - installs prerequisites: svn, git, git-svn, svndumpsanitizer
+
+	These are the functions defined by the script.
+	If you executed it with '. ./scm.sh' you will be able to call them directly like for example '$ scmHelp'
+EOF_USAGE
+)
+"
+}
+
+
+function scmExplain(){
+	local srcSvnUrl dest
+	srcSvnUrl=${1:?Src svn url is missing. Eg. svn://raisercostin2.synology.me/all}
+    dest=${2:?Destination name of project is missing. Eg. myprj1}
+	echo "
+$( cat <<-EOF_USAGE
+	------------------
+	For a partial svn
+	scmFullFilteredExport $@
+	------------------
+	scmSvnClone $srcSvnUrl $dest-1.svn
+	scmSvnDump $dest-1.svn $dest-2.svndump
+	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
+	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
+	scmListAuthors $dest-4.svn $dest-5-authors.txt
+	scmGitClone3 $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
+
+	------------------
+	For a full svn
+	scmFullExport $@
+	------------------
+	scmSvnClone $srcSvnUrl $dest-1.svn
+	scmListAuthors $dest-1.svn $dest-5-authors.txt
+	scmGitClone3 $dest-1.svn $dest-5-authors.txt $dest-6.git /namek
+
+EOF_USAGE
+)
+"
+}
+
+
 function scmSvnClone(){
     local srcProjectUrl destProjectSvn
-    srcProjectUrl="$1"
-    destProjectSvn="$2"
+    srcProjectUrl=${1:?Src svn url is missing. Eg. svn://raisercostin2.synology.me/all}
+    destProjectSvn=${2:?Destination name of project is missing. Eg. myprj1}
     
-    echo "migrate $project [$srcProjectUrl] => [$destProjectSvn]" >&2
+    yell "migrate [$srcProjectUrl] => [$destProjectSvn]"
 
 	svnProjectPath=file://`pwd`/$destProjectSvn
 
@@ -42,8 +87,8 @@ function scmSvnClone(){
 	chmod +x $destProjectSvn/hooks/pre-revprop-change
 	svnsync init $svnProjectPath $srcProjectUrl
 	svnsync sync $svnProjectPath
-    svnadmin dump $destProjectSvn > $destProjectSvnDump
 }
+
 
 function scmSvnDump(){
     svnadmin dump $1 > $2
@@ -271,22 +316,19 @@ done
   )
 }
 
-function explain(){
-	local srcSvnUrl dest
+function scmFullExport(){
 	srcSvnUrl="$1"
     dest="$2"
-	echo "You could execute the followings"
-	echo "------------------"
-	echo scmSvnClone $srcSvnUrl $dest-1.svn
-	echo scmSvnDump $dest-1.svn $dest-2.svndump
-	echo scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
-	echo scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
-	echo scmListAuthors $dest-4.svn $dest-5-authors.txt
-	echo scmGitClone3 $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
+	
+	scmSvnClone $srcSvnUrl $dest-1.svn
+	scmListAuthors $dest-1.svn $dest-5-authors.txt
+	scmGitClone3 $dest-1.svn $dest-5-authors.txt $dest-6.git /
+
+	yell "To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt"
 }
 
 #. ./migrate.sh && (migrateProject svn://raisercostin2.synology.me/all/projects/namek namek2)
-function migrateProject(){
+function scmFullFilteredExport(){
 	srcSvnUrl="$1"
     dest="$2"
     #srcProjectUrl="$2"
@@ -302,7 +344,7 @@ function migrateProject(){
 	scmListAuthors $dest-4.svn $dest-5-authors.txt
 	scmGitClone3 $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
 
-	yell "To clean run [ rm -rf $dest-1.svn $dest-2.svndump $dest-3.filtered-svndump $dest4.svn $dest-4-authors.txt"
+	yell "To clean run [ rm -rf $dest-1.svn $dest-2.svndump $dest-3.filtered-svndump $dest-4.svn $dest-5-authors.txt"
 		#cd $project
         #cd $project.git
         #git remote add origin $destProjectUrl
@@ -320,3 +362,5 @@ function migrateProject(){
 #scmImport namek svn://raisercostin2.synology.me/all/projects/namek
 #scmFilter namek /projects/namek
 #scmNewFilteredSvn namek
+
+scmHelp
