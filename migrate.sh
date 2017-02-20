@@ -28,45 +28,41 @@ function prepare(){
 	gcc svndumpsanitizer.c -o svndumpsanitizer
 }
 
-function scmImport(){
-    local project srcProjectUrl
-    project="$1"
-    srcProjectUrl="$2"
+function scmSvnClone(){
+    local srcProjectUrl destProjectSvn
+    srcProjectUrl="$1"
+    destProjectSvn="$2"
     
-    echo "migrate $project [$srcProjectUrl] => [$destProjectUrl]" >&2
+    echo "migrate $project [$srcProjectUrl] => [$destProjectSvn]" >&2
 
-    mkdir $project
-    (
-        cd $project
-        svnProjectName=$project-svn
-        svnProjectPath=file://`pwd`/$svnProjectName
+	svnProjectPath=file://`pwd`/$destProjectSvn
 
-        svnadmin create $svnProjectName
-        echo '#!/bin/sh' > $svnProjectName/hooks/pre-revprop-change
-        chmod +x $svnProjectName/hooks/pre-revprop-change
-        svnsync init $svnProjectPath $srcProjectUrl
-        svnsync sync $svnProjectPath
-        svnadmin dump $svnProjectName > $svnProjectName.svndump
-	)
+	svnadmin create $destProjectSvn
+	echo '#!/bin/sh' > $destProjectSvn/hooks/pre-revprop-change
+	chmod +x $destProjectSvn/hooks/pre-revprop-change
+	svnsync init $svnProjectPath $srcProjectUrl
+	svnsync sync $svnProjectPath
+    svnadmin dump $destProjectSvn > $destProjectSvnDump
 }
 
-PARAM_SVN_FILTERED_DUMP="-svn-filtered.svndump"
-PARAM_SVN_FILTERED_PRJ=".svn"
+function scmSvnDump(){
+    svnadmin dump $1 > $2
+}
 
 function scmFilter(){
     local src dest srcSvnProjectSubPath
     src="$1"
     dest="$2"
-    redefineRoot="$3"
+    redefinedRoot="$3"
     srcSvnProjectSubPath="${@:4}"
 
-	if [ -f $dest$PARAM_SVN_FILTERED_DUMP ]; then
-		yell Dest file [$dest$PARAM_SVN_FILTERED_DUMP] already exists.
+	if [ -f $dest ]; then
+		yell Dest file [$dest] already exists.
 	else
-		yell Filter from [$src-svn.svndump] to [$dest$PARAM_SVN_FILTERED_DUMP] with svnProjectSubPath [$srcSvnProjectSubPath]
+		yell Filter from [$src] to [$dest] with svnProjectSubPath [$srcSvnProjectSubPath]
 		#svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
-		#.././svndumpsanitizer --infile $src-svn.svndump --outfile $dest$PARAM_SVN_FILTERED_DUMP --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $srcSvnProjectSubPath
-		./svndumpsanitizer --infile $src-svn.svndump --outfile $dest$PARAM_SVN_FILTERED_DUMP --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $redefineRoot
+		#.././svndumpsanitizer --infile $src-svn.svndump --outfile $dest --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $srcSvnProjectSubPath
+		./svndumpsanitizer --infile $src --outfile $dest --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $redefinedRoot
 	fi
 }
 
@@ -74,15 +70,14 @@ function scmSvnFilteredClone(){
     local src dest
     src="$1"
     dest="$2"
-    destDir=$dest$PARAM_SVN_FILTERED_PRJ
-	[[ ! -d $destDir ]] || die Out folder [$destDir] already exists.
+	[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
-    yell Create new filtered svn repo at [$destDir]
+    yell Create new filtered svn repo at [$dest]
 	(
 		yell info at http://jmsliu.com/2700/more-project-from-one-svn-repository-to-another-one.html
-		svnadmin create $destDir
-		svn info $destDir
-		svnadmin load $destDir < $src$PARAM_SVN_FILTERED_DUMP
+		svnadmin create $dest
+		svn info $dest
+		svnadmin load $dest < $src
 	)
 }
 
@@ -91,10 +86,10 @@ function scmListAuthors(){
     src="$1"
     dest="${2:-authors.txt}"
     inAuthors="${3:-authors-all.txt}"
-	svnRepo=file://`pwd`/$src$PARAM_SVN_FILTERED_PRJ
+	svnRepo=file://`pwd`/$src
 
-    echo "[$src]$FUNCNAME> Extract authors from [$src$PARAM_SVN_FILTERED_PRJ] and look them up in [$inAuthors] (if exits)" >&2
-	echo "#Users found for [$svnRepo] and lookedup in [$inAuthors]" > $dest >&2
+    echo "[$src]$FUNCNAME> Extract authors from [$src] and look them up in [$inAuthors] (if exits)" >&2
+	echo "#Users found for [$svnRepo] and lookedup in [$inAuthors]" >$dest
 	svn log $svnRepo | scmExtractAuthors $inAuthors >> $dest
 	cat $dest
 }
@@ -113,9 +108,9 @@ function scmGitClone(){
     local project newSvnProjectName svnRepo svnProjectName
     project=${1:?Project name is missing}
 	srcSvnProjectSubPath=${2:?Project svn subpath is missing}
-    newSvnProjectName=$project$PARAM_SVN_FILTERED_PRJ
+    newSvnProjectName=$project
     svnProjectName=$project-svn
-	svnRepo=file://`pwd`/$project/$project$PARAM_SVN_FILTERED_PRJ
+	svnRepo=file://`pwd`/$project/$project
 
     echo "[$project]$FUNCNAME> Clone [$svnRepo] with authors from [$project/authors.txt] into [$project.git]" >&2
 	(
@@ -171,9 +166,10 @@ function scmGitClone3(){
 	name=${1:?srcSvnUrl is missing}
 	authors=${2:?authors file is missing}
 	dest=${3:?Destination is missing}
+	redefinedRoot=${4:?project root is missing}
 
-	url=file://`pwd`/$name$PARAM_SVN_FILTERED_PRJ/
-	scmGitClone4 $name $authors $url $dest
+	url=file://`pwd`/$name/namek
+	scmGitClone4 $name $authors $url $dest $redefinedRoot
 }
 function scmGitClone4(){
 	local name authors url dest
@@ -275,25 +271,38 @@ done
   )
 }
 
-function migrateProject(){
-    #local project srcProjectUrl destProjectUrl shouldPush
+function explain(){
+	local srcSvnUrl dest
 	srcSvnUrl="$1"
     dest="$2"
-	project=$dest
+	echo "You could execute the followings"
+	echo "------------------"
+	echo scmSvnClone $srcSvnUrl $dest-1.svn
+	echo scmSvnDump $dest-1.svn $dest-2.svndump
+	echo scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
+	echo scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
+	echo scmListAuthors $dest-4.svn $dest-5-authors.txt
+	echo scmGitClone3 $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
+}
+
+#. ./migrate.sh && (migrateProject svn://raisercostin2.synology.me/all/projects/namek namek2)
+function migrateProject(){
+	srcSvnUrl="$1"
+    dest="$2"
     #srcProjectUrl="$2"
     #destProjectUrl="$3"
     #srcSvnProjectSubPath="$4"
     #shouldPush="${5:-false}"
-    #echo "migrate $project [$srcProjectUrl] => [$destProjectUrl]"
+    #echo "migrate $dest [$srcProjectUrl] => [$destProjectUrl]"
 	
-	scmImport $project $srcSvnUrl
-	scmFilter $project $project-1 projects /projects/namek /projects/darzar
-	scmSvnFilteredClone $project-1 $project-2
-	scmListAuthors $project-2 $project-2-authors.txt
-	scmGitClone3 $project-2 $project-2-authors.txt $project-3 /namek
+	scmSvnClone $srcSvnUrl $dest-1.svn
+	scmSvnDump $dest-1.svn $dest-2.svndump
+	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
+	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
+	scmListAuthors $dest-4.svn $dest-5-authors.txt
+	scmGitClone3 $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
 
-
-    (
+	yell "To clean run [ rm -rf $dest-1.svn $dest-2.svndump $dest-3.filtered-svndump $dest4.svn $dest-4-authors.txt"
 		#cd $project
         #cd $project.git
         #git remote add origin $destProjectUrl
@@ -302,7 +311,6 @@ function migrateProject(){
         #    git push --set-upstream origin master
         #fi
 		:
-    )
 }
 #execute with 
 # . ./migrate.sh && scmFilter namek /projects/namek

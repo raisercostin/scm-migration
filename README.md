@@ -31,3 +31,8 @@
   - http://john.albin.net/git/git-svn-migrate
   - http://john.albin.net/git/convert-subversion-to-git
 - https://bitbucket.org/atlassian/svn-migration-scripts/src
+- https://github.com/dsuni/svndumpsanitizer
+
+= Thanks
+
+Thank you for svndumpsanitizer.
