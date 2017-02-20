@@ -73,13 +73,43 @@ EOF_USAGE
 	: ${2:?Syntax: scmExplain <srcSvnUrl> <destPrjName>}
 }
 
+function scmExport(){
+	local srcSvnUrl dest
+	srcSvnUrl=${1:?Syntax: scmExport <srcSvnUrl> <destPrjName>}
+	dest=${2:?Syntax: scmExport <srcSvnUrl> <destPrjName>}
+
+	yell "executing> scmExport [$srcSvnUrl] [$dest]"
+	
+	scmSvnClone $srcSvnUrl $dest-1.svn
+	scmListAuthors $dest-1.svn $dest-5-authors.txt
+	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
+
+	yell "!!! To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt ]"
+}
+
+function scmFilteredExport(){
+	local srcSvnUrl dest redefinedRoot
+	srcSvnUrl=${1:?Syntax: scmFilteredExport <srcSvnUrl> <destPrjName>}
+	dest=${2:?Syntax: scmFilteredExport <srcSvnUrl> <destPrjName>}
+	redefinedRoot="$3:?/namek"
+    yell "executing> scmFilteredExport $srcSvnUrl $dest $redefinedRoot"
+	
+	scmSvnClone $srcSvnUrl $dest-1.svn
+	scmSvnDump $dest-1.svn $dest-2.svndump
+	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
+	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
+	scmListAuthors $dest-4.svn $dest-5-authors.txt
+	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git $redefinedRoot
+
+	yell "To clean run [ rm -rf $dest-1.svn $dest-2.svndump $dest-3.filtered-svndump $dest-4.svn $dest-5-authors.txt"
+}
+
 
 function scmSvnClone(){
     local srcProjectUrl destProjectSvn
     srcProjectUrl=${1:?Src svn url is missing. Eg. svn://raisercostin2.synology.me/all}
     destProjectSvn=${2:?Destination name of project is missing. Eg. myprj1}
-    
-    yell "migrate [$srcProjectUrl] => [$destProjectSvn]"
+    yell "scmSvnClone $srcProjectUrl $destProjectSvn"
 
 	svnProjectPath=file://`pwd`/$destProjectSvn
 
@@ -92,11 +122,16 @@ function scmSvnClone(){
 
 
 function scmSvnDump(){
-    svnadmin dump $1 > $2
+    local srcSvnLocalRepoDir destSvnDumpFile
+	srcProjectUrl=${1:?Syntax: scmSvnDump <srcSvnLocalRepoDir> <destSvnDumpFile>}
+	destSvnDumpFile=${2:?Syntax: scmSvnDump <srcSvnLocalRepoDir> <destSvnDumpFile>}
+
+    yell "scmSvnDump $srcProjectUrl $destSvnDumpFile"
+    svnadmin dump $srcProjectUrl > $destSvnDumpFile
 }
 
 function scmFilter(){
-    local src dest srcSvnProjectSubPath
+    local src dest redefinedRoot srcSvnProjectSubPath
     src="$1"
     dest="$2"
     redefinedRoot="$3"
@@ -108,7 +143,7 @@ function scmFilter(){
 		yell Filter from [$src] to [$dest] with svnProjectSubPath [$srcSvnProjectSubPath]
 		#svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
 		#.././svndumpsanitizer --infile $src-svn.svndump --outfile $dest --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $srcSvnProjectSubPath
-		./svndumpsanitizer --infile $src --outfile $dest --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $redefinedRoot
+		./svndumpsanitizer --infile $src --outfile $dest --drop-empty --add-delete --redefine-root $redefinedRoot --include $srcSvnProjectSubPath 
 	fi
 }
 
@@ -321,34 +356,6 @@ done
   )
 }
 
-function scmExport(){
-	srcSvnUrl="$1"
-    dest="$2"
-	
-	scmSvnClone $srcSvnUrl $dest-1.svn
-	scmListAuthors $dest-1.svn $dest-5-authors.txt
-	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
-
-	yell "To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt"
-}
-
-#. ./migrate.sh && (migrateProject svn://raisercostin2.synology.me/all/projects/namek namek2)
-function scmFilteredExport(){
-	local srcSvnUrl dest redefinedRoot
-	srcSvnUrl="$1"
-    dest="$2"
-	redefinedRoot="$3:?/namek"
-
-    #echo "migrate $dest [$srcProjectUrl] => [$destProjectUrl]"
-	
-	scmSvnClone $srcSvnUrl $dest-1.svn
-	scmSvnDump $dest-1.svn $dest-2.svndump
-	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
-	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
-	scmListAuthors $dest-4.svn $dest-5-authors.txt
-	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git $redefinedRoot
-
-	yell "To clean run [ rm -rf $dest-1.svn $dest-2.svndump $dest-3.filtered-svndump $dest-4.svn $dest-5-authors.txt"
 		#cd $project
         #cd $project.git
         #git remote add origin $destProjectUrl
@@ -356,8 +363,7 @@ function scmFilteredExport(){
         #if [ "$shouldPush" == 'true' ]; then
         #    git push --set-upstream origin master
         #fi
-		:
-}
+#		:
 #execute with 
 # . ./migrate.sh && scmFilter namek /projects/namek
 
@@ -367,4 +373,8 @@ function scmFilteredExport(){
 #scmFilter namek /projects/namek
 #scmNewFilteredSvn namek
 
+#scmExplain svn://raisercostin2.synology.me/all namek5
+
 scmHelp
+
+#. ./migrate.sh && (migrateProject svn://raisercostin2.synology.me/all/projects/namek namek2)
