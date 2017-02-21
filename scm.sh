@@ -53,21 +53,32 @@ function scmExplain(){
 	echo "
 $( cat <<-EOF_USAGE
 	---------------------------------------------------------------------------------------------------------
+	A) Clone from a full local svn (faster than from a remote svn?)
 	- 'scmExport $srcSvnUrl $dest' will execute the following commands:
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
-	scmListAuthors $dest-1.svn $dest-5-authors.txt
+	scmListAuthors $dest-1.svn > $dest-5-authors.txt
 	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
 
 	
+	
+	B) Clone from a filtered local svn (filtering can happen only localy)
 	- 'scmFilterdExport $srcSvnUrl $dest projects projects/namek projects/darzar' will execute the following commands:
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmSvnDump $dest-1.svn $dest-2.svndump
 	scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
 	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
-	scmListAuthors $dest-4.svn $dest-5-authors.txt
+	scmListAuthors $dest-4.svn > $dest-5-authors.txt
 	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
+
+	
+	
+	C) Clone from a remote svn
+	- 'scmRemoteSvnExport $srcSvnUrl $dest' will execute the following commands:
+	
+	scmListAuthors $srcSvnUrl > $dest-5-authors.txt
+	scmGitClone $srcSvnUrl $dest-5-authors.txt $dest-6.git
 
 EOF_USAGE
 )
@@ -85,7 +96,7 @@ function scmExport(){
 	yell "executing> scmExport [$srcSvnUrl] [$dest]"
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
-	scmListAuthors $dest-1.svn $dest-5-authors.txt
+	scmListAuthors $dest-1.svn > $dest-5-authors.txt
 	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
 
 	yell "!!! To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt ]"
@@ -105,7 +116,7 @@ function scmFilteredExport(){
 	scmSvnDump $dest-1.svn $dest-2.svndump
 	scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
 	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
-	scmListAuthors $dest-4.svn $dest-5-authors.txt
+	scmListAuthors $dest-4.svn > $dest-5-authors.txt
 	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git $redefinedRoot
 
 	yell "To clean run [ rm -rf $dest-1.svn $dest-2.svndump $dest-3.filtered-svndump $dest-4.svn $dest-5-authors.txt"
@@ -153,7 +164,7 @@ function scmSvnDumpFilter(){
 		yell "Dest file [$dest] already exists."
 	else
 		#The svndumpfilter cannot do the job properly since is just a filter: you cannot blindly filter paths since they might be part of the final needed path.
-		#svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
+		#svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
 		./svndumpsanitizer --infile $src --outfile $dest --drop-empty --add-delete --redefine-root $redefinedRoot --include $srcSvnProjectSubPath 
 	fi
 }
@@ -165,26 +176,28 @@ function scmSvnFilteredClone(){
     src=${1:?$syntax}
     dest=${2:?$syntax}
 	yell "scmSvnFilteredClone $src $dest"
-	[[ ! -d $dest ]] || die Out folder [$dest] already exists.
+	(
+		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
-	svnadmin create $dest
-	svn info $dest
-	svnadmin load $dest < $src
+		svnadmin create $dest
+		svn info $dest
+		svnadmin load $dest < $src
+	)
 }
 
 function scmListAuthors(){
     local syntax src dest inAuthors svnRepo
 	syntax="Syntax: scmListAuthors <src> [dest] [inAuthors]"
     src=${1:?$syntax}
-    dest=${2:-authors.txt}
-    inAuthors=${3:-authors-all.txt}
-	svnRepo=file://`pwd`/$src
-	yell "scmListAuthors $src $dest $inAuthors"
+    inAuthors=${2:-authors-all.txt}
+	if [ -d $src ]; then
+		svnRepo=file://`pwd`/$src
+	else
+		svnRepo=$src
+	fi
 
-    echo "[$src]$FUNCNAME> Extract authors from [$src] and look them up in [$inAuthors] (if exits)" >&2
-	echo "#Users found for [$svnRepo] and lookedup in [$inAuthors]" >$dest
-	svn log $svnRepo | scmExtractAuthors $inAuthors >> $dest
-	cat $dest
+	echo "#Users found for [$svnRepo] and lookedup in [$inAuthors]"
+	svn log $svnRepo | scmExtractAuthors $inAuthors
 }
 
 
@@ -198,26 +211,39 @@ function scmExtractAuthors(){
 }
 
 function scmGitClone(){
-	local name authors url dest
+	local syntax name authors url dest
+	syntax="Syntax: scmGitClone <name> <authors> <dest>"
 	name=${1:?srcSvnUrl is missing}
 	authors=${2:?authors file is missing}
 	dest=${3:?Destination is missing}
-	redefinedRoot=${4:?project root is missing}
+	#url=file://`pwd`/$name$redefinedRoot
+	yell "scmGitClone $name $authors $dest"
 	
 	(
 		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
-		url=file://`pwd`/$name$redefinedRoot
-		scmGitClone4 $name $authors $url $dest $redefinedRoot
+		#scmGitClone4 $name $authors $url $dest $redefinedRoot
+		scmGitClone4 $name $authors $dest
 	)
 }
+
 function scmGitClone4(){
 	local name authors url dest
+	syntax="Syntax: scmGitClone <name> <authors> <dest>"
+	name=${1:?srcSvnUrl is missing}
+	authors=${2:?authors file is missing}
+	dest=${3:?Destination is missing}
+	yell "scmGitClone4 $name $authors $dest"
+	
+	if [ -d $name ]; then
+		url=file://`pwd`/$name
+	else
+		url=$name
+	fi
+	yell "svnUrl=$url"
+
 	(
-		name=${1:?srcSvnUrl is missing}
-		authors=${2:?authors file is missing}
-		url=${3:?srcSvnUrl is missing}
-		dest=${4:?Destination is missing}
+		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
 		# Process each Subversion URL.
 		echo >&2;
@@ -226,7 +252,7 @@ function scmGitClone4(){
 
 		#mkdir $name
 		#cd $name
-		tmp_destination="$name-tmp.git";
+		tmp_destination="$dest-tmp";
 		destination=$dest
 		gitinit_params=""
 		gitsvn_params=""
@@ -386,6 +412,7 @@ function scmGitClone2Deprecated(){
 #scmNewFilteredSvn namek
 
 #scmExplain svn://raisercostin2.synology.me/all namek5
+#scmExplain https://svn.java.net/svn/yanfs~svn yanfs
 
 scmHelp
 
