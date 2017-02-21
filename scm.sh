@@ -46,8 +46,8 @@ EOF_USAGE
 function scmExplain(){
 	local syntax srcSvnUrl dest
 	syntax="Syntax: scmExplain <srcSvnUrl> <destPrjName>"
-	srcSvnUrl=${1:-https://myserver.com/someproject}
-    dest=${2:-myprj}
+	srcSvnUrl=${1:-https://myserver.com/someProject}
+    dest=${2:-myPrj}
 	redefinedRoot=${3:-projects}
 	includePaths=${4:-projects/namek projects/darzar}
 	echo "
@@ -173,11 +173,13 @@ function scmSvnFilteredClone(){
 }
 
 function scmListAuthors(){
-    local src dest inAuthors svnRepo
-    src="$1"
-    dest="${2:-authors.txt}"
-    inAuthors="${3:-authors-all.txt}"
+    local syntax src dest inAuthors svnRepo
+	syntax="Syntax: scmListAuthors <src> [dest] [inAuthors]"
+    src=${1:?$syntax}
+    dest=${2:-authors.txt}
+    inAuthors=${3:-authors-all.txt}
 	svnRepo=file://`pwd`/$src
+	yell "scmListAuthors $src $dest $inAuthors"
 
     echo "[$src]$FUNCNAME> Extract authors from [$src] and look them up in [$inAuthors] (if exits)" >&2
 	echo "#Users found for [$svnRepo] and lookedup in [$inAuthors]" >$dest
@@ -188,68 +190,11 @@ function scmListAuthors(){
 
 # you can extract authors with:
 # . ./migrate.sh && svn log svn://raisercostin2.synology.me/all/projects/namek | scmExtractAuthors
+#inspired from here http://stackoverflow.com/questions/37488797/how-to-perform-a-key-field-lookup-in-a-file-using-bash-or-awk
 function scmExtractAuthors(){
 	local inAuthors
     inAuthors="${1:-authors-all.txt}"
-	#inspired from here http://stackoverflow.com/questions/37488797/how-to-perform-a-key-field-lookup-in-a-file-using-bash-or-awk
 	grep '|' | awk -F '|' '/^r/ {sub("^ ", "", $2); sub(" $", "", $2); print $2}' - | awk 'NF' | sort -u | awk 'BEGIN{FS=" = ";OFS=","}NR==FNR{email[$1]=$2}NR>FNR{if (email[$1]) print $1" = "email[$1]; else print $1" = "$1"<"$1">";}' <( cat $inAuthors 2> /dev/null || echo "" ) -
-}
-
-function scmGitCloneDeprecated(){
-    local project newSvnProjectName svnRepo svnProjectName
-    project=${1:?Project name is missing}
-	srcSvnProjectSubPath=${2:?Project svn subpath is missing}
-    newSvnProjectName=$project
-    svnProjectName=$project-svn
-	svnRepo=file://`pwd`/$project/$project
-
-    echo "[$project]$FUNCNAME> Clone [$svnRepo] with authors from [$project/authors.txt] into [$project.git]" >&2
-	(
-		cd $project
-		git svn clone $svnRepo$srcSvnProjectSubPath --prefix=origin/ --authors-file=authors.txt --stdlayout $project.git #--tags=tags --branches=branches --trunk=trunk $project.git
-		(
-			cd $project.git
-			echo "- Converting svn:ignore properties into a .gitignore file..." >&2
-			git svn show-ignore --id trunk >> .gitignore
-			git add .gitignore
-			git commit --author="git-svn-migrate <nobody@example.org>" -m 'Convert svn:ignore properties to .gitignore.'
-			
-			
-			echo "Rename Subversion's [trunk] branch to Git's standard [master] branch." >&2
-			cd $destination/$name.git;
-			git branch -m trunk master
-
-			# Remove bogus branches of the form "name@REV".
-#			git for-each-ref --format='%(refname)' refs/heads | grep '@[0-9][0-9]*' | cut -d / -f 3- | xargs -L1 git branch -D "$ref";
-#			while read ref
-#			do
-#				git branch -D "$ref";
-#			done
-
-			# Convert git-svn tag branches to proper tags.
-#			echo "- Converting svn tag directories to proper git tags..." >&2;
-#			git for-each-ref --format='%(refname)' refs/heads/tags | cut -d / -f 4 |
-#			while read ref
-#			do
-#				git tag -a "$ref" -m "Convert \"$ref\" to a proper git tag." "refs/heads/tags/$ref";
-#				git branch -D "tags/$ref";
-#			done
-		)
-	)
-}
-
-function scmGitClone2Deprecated(){
-	line=${@:1}
-
-	# Check for 2-field format:  Name [tab] URL
-	name=`echo $line | awk '{print $1}'`;
-	url=`echo $line | awk '{print $2}'`;
-	# Check for simple 1-field format:  URL
-	if [[ $url == '' ]]; then
-	url=$name;
-	name=`basename $url`;
-	fi
-	scmGitClone $url authors.txt $name /
 }
 
 function scmGitClone(){
@@ -364,6 +309,63 @@ done
 		)
 		echo "- Conversion completed at $(date)." >&2;
   )
+}
+
+function scmGitCloneDeprecated(){
+    local project newSvnProjectName svnRepo svnProjectName
+    project=${1:?Project name is missing}
+	srcSvnProjectSubPath=${2:?Project svn subpath is missing}
+    newSvnProjectName=$project
+    svnProjectName=$project-svn
+	svnRepo=file://`pwd`/$project/$project
+
+    echo "[$project]$FUNCNAME> Clone [$svnRepo] with authors from [$project/authors.txt] into [$project.git]" >&2
+	(
+		cd $project
+		git svn clone $svnRepo$srcSvnProjectSubPath --prefix=origin/ --authors-file=authors.txt --stdlayout $project.git #--tags=tags --branches=branches --trunk=trunk $project.git
+		(
+			cd $project.git
+			echo "- Converting svn:ignore properties into a .gitignore file..." >&2
+			git svn show-ignore --id trunk >> .gitignore
+			git add .gitignore
+			git commit --author="git-svn-migrate <nobody@example.org>" -m 'Convert svn:ignore properties to .gitignore.'
+			
+			
+			echo "Rename Subversion's [trunk] branch to Git's standard [master] branch." >&2
+			cd $destination/$name.git;
+			git branch -m trunk master
+
+			# Remove bogus branches of the form "name@REV".
+#			git for-each-ref --format='%(refname)' refs/heads | grep '@[0-9][0-9]*' | cut -d / -f 3- | xargs -L1 git branch -D "$ref";
+#			while read ref
+#			do
+#				git branch -D "$ref";
+#			done
+
+			# Convert git-svn tag branches to proper tags.
+#			echo "- Converting svn tag directories to proper git tags..." >&2;
+#			git for-each-ref --format='%(refname)' refs/heads/tags | cut -d / -f 4 |
+#			while read ref
+#			do
+#				git tag -a "$ref" -m "Convert \"$ref\" to a proper git tag." "refs/heads/tags/$ref";
+#				git branch -D "tags/$ref";
+#			done
+		)
+	)
+}
+
+function scmGitClone2Deprecated(){
+	line=${@:1}
+
+	# Check for 2-field format:  Name [tab] URL
+	name=`echo $line | awk '{print $1}'`;
+	url=`echo $line | awk '{print $2}'`;
+	# Check for simple 1-field format:  URL
+	if [[ $url == '' ]]; then
+	url=$name;
+	name=`basename $url`;
+	fi
+	scmGitClone $url authors.txt $name /
 }
 
 		#cd $project
