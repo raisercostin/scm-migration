@@ -112,7 +112,7 @@ function scmRemoteSvnExport(){
 	yell "executing> scmExport [$srcSvnUrl] [$dest]"
 	
 	scmListAuthors $srcSvnUrl > $dest-5-authors.txt
-	scmGitClone $srcSvnUrl $dest-5-authors.txt $dest-6.git /
+	scmGitClone $srcSvnUrl / $dest-5-authors.txt $dest-6.git
 
 	yell "!!! To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt ]"
 }
@@ -126,7 +126,7 @@ function scmExport(){
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmListAuthors $dest-1.svn > $dest-5-authors.txt
-	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
+	scmGitClone $dest-1.svn / $dest-5-authors.txt $dest-6.git
 
 	yell "!!! To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt ]"
 }
