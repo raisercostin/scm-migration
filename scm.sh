@@ -27,7 +27,7 @@ $( cat <<-EOF_USAGE
 	
 	scmSvnClone       - clonses locally a remote svn repo
 	scmSvnDump        - dumps a local svn clone to a file using svndumpsanitizer
-	scmFilter         - filters an svn dump
+	scmSvnDumpFilter  - filters an svn dump
 	scmSvnFilteredClone - clonses locally a svn repo from an svndump
 	scmListAuthors    - lists authors from a local svn
 	scmGitClone       - clones in git from a local svn using provided authors
@@ -44,9 +44,12 @@ EOF_USAGE
 
 
 function scmExplain(){
-	local srcSvnUrl dest
+	local syntax srcSvnUrl dest
+	syntax="Syntax: scmExplain <srcSvnUrl> <destPrjName>"
 	srcSvnUrl=${1:-https://myserver.com/someproject}
     dest=${2:-myprj}
+	redefinedRoot=${3:-projects}
+	includePaths=${4:-projects/namek projects/darzar}
 	echo "
 $( cat <<-EOF_USAGE
 	---------------------------------------------------------------------------------------------------------
@@ -57,11 +60,11 @@ $( cat <<-EOF_USAGE
 	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
 
 	
-	- 'scmFilterdExport $srcSvnUrl $dest' will execute the following commands:
+	- 'scmFilterdExport $srcSvnUrl $dest projects projects/namek projects/darzar' will execute the following commands:
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmSvnDump $dest-1.svn $dest-2.svndump
-	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
+	scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
 	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
 	scmListAuthors $dest-4.svn $dest-5-authors.txt
 	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
@@ -69,15 +72,16 @@ $( cat <<-EOF_USAGE
 EOF_USAGE
 )
 "
-	: ${1:?Syntax: scmExplain <srcSvnUrl> <destPrjName>}
-	: ${2:?Syntax: scmExplain <srcSvnUrl> <destPrjName>}
+	: ${1:?$syntax}
+	: ${2:?$syntax}
 }
 
-function scmExport(){
-	local srcSvnUrl dest
-	srcSvnUrl=${1:?Syntax: scmExport <srcSvnUrl> <destPrjName>}
-	dest=${2:?Syntax: scmExport <srcSvnUrl> <destPrjName>}
 
+function scmExport(){
+	local syntax srcSvnUrl dest
+	syntax="Syntax: scmExport <srcSvnUrl> <destPrjName>"
+	srcSvnUrl=${1:?$syntax}
+	dest=${2:?$syntax}
 	yell "executing> scmExport [$srcSvnUrl] [$dest]"
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
@@ -87,16 +91,19 @@ function scmExport(){
 	yell "!!! To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt ]"
 }
 
+
 function scmFilteredExport(){
-	local srcSvnUrl dest redefinedRoot
-	srcSvnUrl=${1:?Syntax: scmFilteredExport <srcSvnUrl> <destPrjName>}
-	dest=${2:?Syntax: scmFilteredExport <srcSvnUrl> <destPrjName>}
-	redefinedRoot="$3:?/namek"
-    yell "executing> scmFilteredExport $srcSvnUrl $dest $redefinedRoot"
+	local syntax srcSvnUrl dest redefinedRoot
+	syntax="Syntax: scmFilteredExport <srcSvnUrl> <destPrjName> <redefinedRoot> <includePaths> . See './svndumpsanitizer -h' for more details on <redefinedRoot> and <includePaths>"
+	srcSvnUrl=${1:?$syntax}
+	dest=${2:?$syntax}
+	redefinedRoot=${3:?$syntax}
+	includePaths=${4:?$syntax}
+    yell "executing> scmFilteredExport $srcSvnUrl $dest $redefinedRoot $includePaths"
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmSvnDump $dest-1.svn $dest-2.svndump
-	scmFilter $dest-2.svndump $dest-3.filtered-svndump projects projects/namek projects/darzar
+	scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
 	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
 	scmListAuthors $dest-4.svn $dest-5-authors.txt
 	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git $redefinedRoot
@@ -106,10 +113,11 @@ function scmFilteredExport(){
 
 
 function scmSvnClone(){
-    local srcProjectUrl destProjectSvn
+    local syntax srcProjectUrl destProjectSvn
+	syntax="Syntax: scmSvnClone <srcSvnLocalRepoDir> <destProjectSvn>"
     srcProjectUrl=${1:?Src svn url is missing. Eg. svn://raisercostin2.synology.me/all}
     destProjectSvn=${2:?Destination name of project is missing. Eg. myprj1}
-    yell "scmSvnClone $srcProjectUrl $destProjectSvn"
+	yell "scmSvnClone $srcProjectUrl $destProjectSvn"
 
 	svnProjectPath=file://`pwd`/$destProjectSvn
 
@@ -122,44 +130,46 @@ function scmSvnClone(){
 
 
 function scmSvnDump(){
-    local srcSvnLocalRepoDir destSvnDumpFile
-	srcProjectUrl=${1:?Syntax: scmSvnDump <srcSvnLocalRepoDir> <destSvnDumpFile>}
-	destSvnDumpFile=${2:?Syntax: scmSvnDump <srcSvnLocalRepoDir> <destSvnDumpFile>}
-
+    local syntax srcSvnLocalRepoDir destSvnDumpFile
+	syntax="Syntax: scmSvnDump <srcProjectUrl> <destSvnDumpFile>"
+	srcProjectUrl=${1:?$syntax}
+	destSvnDumpFile=${2:?$syntax}
     yell "scmSvnDump $srcProjectUrl $destSvnDumpFile"
+	
     svnadmin dump $srcProjectUrl > $destSvnDumpFile
 }
 
-function scmFilter(){
-    local src dest redefinedRoot srcSvnProjectSubPath
-    src="$1"
-    dest="$2"
+
+function scmSvnDumpFilter(){
+    local syntax src dest redefinedRoot srcSvnProjectSubPath
+	syntax="Syntax: scmSvnDumpFilter <srcSvnDumpToFilter> <destSvnDumpFiltered> <> <>"
+    src=${1:?$syntax}
+    dest=${2:?$syntax}
     redefinedRoot="$3"
     srcSvnProjectSubPath="${@:4}"
+	yell "scmSvnDumpFilter $src $dest $redefinedRoot $srcSvnProjectSubPath"
 
 	if [ -f $dest ]; then
-		yell Dest file [$dest] already exists.
+		yell "Dest file [$dest] already exists."
 	else
-		yell Filter from [$src] to [$dest] with svnProjectSubPath [$srcSvnProjectSubPath]
+		#The svndumpfilter cannot do the job properly since is just a filter: you cannot blindly filter paths since they might be part of the final needed path.
 		#svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
-		#.././svndumpsanitizer --infile $src-svn.svndump --outfile $dest --include $srcSvnProjectSubPath --drop-empty --add-delete --redefine-root $srcSvnProjectSubPath
 		./svndumpsanitizer --infile $src --outfile $dest --drop-empty --add-delete --redefine-root $redefinedRoot --include $srcSvnProjectSubPath 
 	fi
 }
 
+
 function scmSvnFilteredClone(){
-    local src dest
-    src="$1"
-    dest="$2"
+    local syntax src dest
+	syntax="Syntax: scmSvnFilteredClone <src> <dest>"
+    src=${1:?$syntax}
+    dest=${2:?$syntax}
+	yell "scmSvnFilteredClone $src $dest"
 	[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
-    yell Create new filtered svn repo at [$dest]
-	(
-		yell info at http://jmsliu.com/2700/more-project-from-one-svn-repository-to-another-one.html
-		svnadmin create $dest
-		svn info $dest
-		svnadmin load $dest < $src
-	)
+	svnadmin create $dest
+	svn info $dest
+	svnadmin load $dest < $src
 }
 
 function scmListAuthors(){
@@ -365,12 +375,12 @@ done
         #fi
 #		:
 #execute with 
-# . ./migrate.sh && scmFilter namek /projects/namek
+# . ./migrate.sh && scmSvnDumpFilter namek /projects/namek
 
 #migrateProject mucommander https://svn.mucommander.com/mucommander/ https://github.com/raisercostin/mucommander.git
 #migrateProject namek svn://raisercostin2.synology.me/all/projects/namek projects/namek
 #scmImport namek svn://raisercostin2.synology.me/all/projects/namek
-#scmFilter namek /projects/namek
+#scmSvnDumpFilter namek /projects/namek
 #scmNewFilteredSvn namek
 
 #scmExplain svn://raisercostin2.synology.me/all namek5

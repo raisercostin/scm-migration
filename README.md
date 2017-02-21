@@ -28,6 +28,7 @@
 = Other projects
 
 - http://blog.dandyer.co.uk/2010/05/17/moving-projects-from-java-net-to-github/
+- http://jmsliu.com/2700/more-project-from-one-svn-repository-to-another-one.html
 - John Albin
   - https://github.com/JohnAlbin/git-svn-migrate
   - http://john.albin.net/git/git-svn-migrate
