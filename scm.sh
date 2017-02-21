@@ -37,6 +37,12 @@ $( cat <<-EOF_USAGE
 
 	These are the functions defined by the script.
 	If you executed it with '. ./scm.sh' you will be able to call them directly like for example '$ scmHelp'
+
+	Samples:
+	    scmExplain https://svn.mucommander.com/mucommander mu
+	    scmExplain https://svn.java.net/svn/yanfs~svn yanfs
+	    scmExplain svn://raisercostin2.synology.me/all/projects/namek namek
+
 EOF_USAGE
 )
 "
@@ -50,35 +56,37 @@ function scmExplain(){
     dest=${2:-myPrj}
 	redefinedRoot=${3:-projects}
 	includePaths=${4:-projects/namek projects/darzar}
+	prjRootWhereTrunkTagsBranchesExists=${4:-/namek}
 	echo "
 $( cat <<-EOF_USAGE
 	---------------------------------------------------------------------------------------------------------
-	A) Clone from a full local svn (faster than from a remote svn?)
+	
+	A) Clone from a remote svn
+	- 'scmRemoteSvnExport $srcSvnUrl $dest' will execute the following commands:
+	
+	scmListAuthors $srcSvnUrl > $dest-5-authors.txt
+	scmGitClone $srcSvnUrl / $dest-5-authors.txt $dest-6.git
+
+
+
+	B) Clone from a full local svn (faster than from a remote svn?)
 	- 'scmExport $srcSvnUrl $dest' will execute the following commands:
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmListAuthors $dest-1.svn > $dest-5-authors.txt
-	scmGitClone $dest-1.svn $dest-5-authors.txt $dest-6.git /
+	scmGitClone $dest-1.svn / $dest-5-authors.txt $dest-6.git
 
 	
 	
-	B) Clone from a filtered local svn (filtering can happen only localy)
-	- 'scmFilterdExport $srcSvnUrl $dest projects projects/namek projects/darzar' will execute the following commands:
+	C) Clone from a filtered local svn (filtering can happen only localy)
+	- 'scmFilterdExport $srcSvnUrl $prjRootWhereTrunkTagsBranchesExists $dest projects projects/namek projects/darzar' will execute the following commands:
 	
 	scmSvnClone $srcSvnUrl $dest-1.svn
 	scmSvnDump $dest-1.svn $dest-2.svndump
 	scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
 	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
 	scmListAuthors $dest-4.svn > $dest-5-authors.txt
-	scmGitClone $dest-4.svn $dest-5-authors.txt $dest-6.git /namek
-
-	
-	
-	C) Clone from a remote svn
-	- 'scmRemoteSvnExport $srcSvnUrl $dest' will execute the following commands:
-	
-	scmListAuthors $srcSvnUrl > $dest-5-authors.txt
-	scmGitClone $srcSvnUrl $dest-5-authors.txt $dest-6.git
+	scmGitClone $dest-4.svn $prjRootWhereTrunkTagsBranchesExists $dest-5-authors.txt $dest-6.git
 
 EOF_USAGE
 )
@@ -212,33 +220,35 @@ function scmExtractAuthors(){
 
 function scmGitClone(){
 	local syntax name authors url dest
-	syntax="Syntax: scmGitClone <name> <authors> <dest>"
+	syntax="Syntax: scmGitClone <name> <prjRootWhereTrunkTagsBranchesExists> <authors> <dest>"
 	name=${1:?srcSvnUrl is missing}
-	authors=${2:?authors file is missing}
-	dest=${3:?Destination is missing}
+	prjRoot=${2:?prjRoot is missing. The prjRoot has the standard structure}
+	authors=${3:?authors file is missing}
+	dest=${4:?Destination is missing}
 	#url=file://`pwd`/$name$redefinedRoot
-	yell "scmGitClone $name $authors $dest"
+	yell "scmGitClone $name $prjRoot $authors $dest"
 	
 	(
 		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
 		#scmGitClone4 $name $authors $url $dest $redefinedRoot
-		scmGitClone4 $name $authors $dest
+		scmGitClone4 $name $prjRoot $authors $dest
 	)
 }
 
 function scmGitClone4(){
 	local name authors url dest
-	syntax="Syntax: scmGitClone <name> <authors> <dest>"
+	syntax="Syntax: scmGitClone <name> <prjRootWhereTrunkTagsBranchesExists> <authors> <dest>"
 	name=${1:?srcSvnUrl is missing}
-	authors=${2:?authors file is missing}
-	dest=${3:?Destination is missing}
-	yell "scmGitClone4 $name $authors $dest"
+	prjRoot=${2:?prjRoot is missing. The prjRoot has the standard structure}
+	authors=${3:?authors file is missing}
+	dest=${4:?Destination is missing}
+	yell "scmGitClone4 $name $prjRoot $authors $dest"
 	
 	if [ -d $name ]; then
-		url=file://`pwd`/$name
+		url=file://`pwd`/$name$prjRoot
 	else
-		url=$name
+		url=$name$prjRoot
 	fi
 	yell "svnUrl=$url"
 
@@ -411,8 +421,6 @@ function scmGitClone2Deprecated(){
 #scmSvnDumpFilter namek /projects/namek
 #scmNewFilteredSvn namek
 
-#scmExplain svn://raisercostin2.synology.me/all namek5
-#scmExplain https://svn.java.net/svn/yanfs~svn yanfs
 
 scmHelp
 
