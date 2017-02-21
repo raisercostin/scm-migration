@@ -22,7 +22,8 @@ $( cat <<-EOF_USAGE
 	              Try:
 	                   scmExplain https://svn.mucommander.com/mucommander mu
 	
-	scmExport         - **executes** the entire scmExplain migration plan for a full svn repo
+	scmRemoteSvnExport - **executes** the entire scmExplain migration plan for a full remote svn repo
+	scmExport         - **executes** the entire scmExplain migration plan for a full locally cloned svn repo
 	scmFilteredExport - **executes** the entire scmExplain migration plan for a filtered svn repo
 	
 	scmSvnClone       - clonses locally a remote svn repo
@@ -62,31 +63,38 @@ $( cat <<-EOF_USAGE
 	---------------------------------------------------------------------------------------------------------
 	
 	A) Clone from a remote svn
-	- 'scmRemoteSvnExport $srcSvnUrl $dest' will execute the following commands:
-	
-	scmListAuthors $srcSvnUrl > $dest-5-authors.txt
-	scmGitClone $srcSvnUrl / $dest-5-authors.txt $dest-6.git
+
+	scmRemoteSvnExport $srcSvnUrl $dest
+
+	    will execute the following:
+	        scmListAuthors $srcSvnUrl > $dest-5-authors.txt
+	        scmGitClone $srcSvnUrl / $dest-5-authors.txt $dest-6.git
 
 
 
 	B) Clone from a full local svn (faster than from a remote svn?)
-	- 'scmExport $srcSvnUrl $dest' will execute the following commands:
+
+	scmExport $srcSvnUrl $dest' will execute the following commands:
 	
-	scmSvnClone $srcSvnUrl $dest-1.svn
-	scmListAuthors $dest-1.svn > $dest-5-authors.txt
-	scmGitClone $dest-1.svn / $dest-5-authors.txt $dest-6.git
+	    will execute the following:
+	        scmSvnClone $srcSvnUrl $dest-1.svn
+	        scmListAuthors $dest-1.svn > $dest-5-authors.txt
+	        scmGitClone $dest-1.svn / $dest-5-authors.txt $dest-6.git
 
 	
 	
 	C) Clone from a filtered local svn (filtering can happen only localy)
-	- 'scmFilterdExport $srcSvnUrl $prjRootWhereTrunkTagsBranchesExists $dest projects projects/namek projects/darzar' will execute the following commands:
 	
-	scmSvnClone $srcSvnUrl $dest-1.svn
-	scmSvnDump $dest-1.svn $dest-2.svndump
-	scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
-	scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
-	scmListAuthors $dest-4.svn > $dest-5-authors.txt
-	scmGitClone $dest-4.svn $prjRootWhereTrunkTagsBranchesExists $dest-5-authors.txt $dest-6.git
+	scmFilterdExport $srcSvnUrl $prjRootWhereTrunkTagsBranchesExists $dest projects projects/namek projects/darzar
+
+	    will execute the following:
+	
+	        scmSvnClone $srcSvnUrl $dest-1.svn
+	        scmSvnDump $dest-1.svn $dest-2.svndump
+	        scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
+	        scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
+	        scmListAuthors $dest-4.svn > $dest-5-authors.txt
+	        scmGitClone $dest-4.svn $prjRootWhereTrunkTagsBranchesExists $dest-5-authors.txt $dest-6.git
 
 EOF_USAGE
 )
@@ -95,6 +103,19 @@ EOF_USAGE
 	: ${2:?$syntax}
 }
 
+
+function scmRemoteSvnExport(){
+	local syntax srcSvnUrl dest
+	syntax="Syntax: scmRemoteSvnExport <srcSvnUrl> <destPrjName>"
+	srcSvnUrl=${1:?$syntax}
+	dest=${2:?$syntax}
+	yell "executing> scmExport [$srcSvnUrl] [$dest]"
+	
+	scmListAuthors $srcSvnUrl > $dest-5-authors.txt
+	scmGitClone $srcSvnUrl $dest-5-authors.txt $dest-6.git /
+
+	yell "!!! To clean run [ rm -rf $dest-1.svn $dest-5-authors.txt ]"
+}
 
 function scmExport(){
 	local syntax srcSvnUrl dest
