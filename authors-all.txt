@@ -1,6 +1,6 @@
 #Users found for [file:///home/vagrant/work3/namek-svn/namek/namek-svn-filtered]
 #special authors
-(no author) = noone <noone>
+(no author) = nobody <nobody>
 root = root <root>
 
 #personal

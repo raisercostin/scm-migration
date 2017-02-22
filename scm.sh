@@ -1,11 +1,9 @@
 #!/bin/bash
 
 #some utilities
-internal_yell() { echo "$*" >&2; }
-yell() { internal_yell "$0>${FUNCNAME[1]}: $*"; }
-die() { internal_yell "$0>${FUNCNAME[1]}: $*"; exit 111; }
-try() { "$@" || internal_yell "cannot $*"; }
-
+yell() { echo "$0: $*" >&2; }
+die() { yell "$*"; exit 111; }
+try() { "$@" || die "cannot $*"; }
 
 function scmInit(){
 	sudo apt-get -y install subversion git-svn
@@ -64,7 +62,7 @@ $( cat <<-EOF_USAGE
 	
 	A) Clone from a remote svn
 
-	scmRemoteSvnExport $srcSvnUrl $dest
+	    scmRemoteSvnExport $srcSvnUrl $dest
 
 	    will execute the following:
 	        scmListAuthors $srcSvnUrl > $dest-5-authors.txt
@@ -74,7 +72,7 @@ $( cat <<-EOF_USAGE
 
 	B) Clone from a full local svn (faster than from a remote svn?)
 
-	scmExport $srcSvnUrl $dest
+	    scmExport $srcSvnUrl $dest
 	
 	    will execute the following:
 	        scmSvnClone $srcSvnUrl $dest-1.svn
@@ -85,7 +83,7 @@ $( cat <<-EOF_USAGE
 	
 	C) Clone from a filtered local svn (filtering can happen only localy)
 	
-	scmFilterdExport $srcSvnUrl $prjRootWhereTrunkTagsBranchesExists $dest projects projects/namek projects/darzar
+	    scmFilterdExport $srcSvnUrl $prjRootWhereTrunkTagsBranchesExists $dest projects projects/namek projects/darzar
 
 	    will execute the following:
 	
@@ -240,12 +238,14 @@ function scmExtractAuthors(){
 }
 
 function scmGitClone(){
-	local syntax name authors url dest
+	local syntax name authors dest url dest gitInitParams gitSvnParams gitTmpClone
 	syntax="Syntax: scmGitClone <name> <prjRootWhereTrunkTagsBranchesExists> <authors> <dest>"
 	name=${1:?srcSvnUrl is missing}
 	prjRoot=${2:?prjRoot is missing. The prjRoot has the standard structure}
 	authors=${3:?authors file is missing}
 	dest=${4:?Destination is missing}
+	gitInitParams=${5:-}
+	gitSvnParams=${6:-}
 	yell "scmGitClone $name $prjRoot $authors $dest"
 	
 	if [ -d $name ]; then
@@ -253,70 +253,59 @@ function scmGitClone(){
 	else
 		url=$name$prjRoot
 	fi
-	yell "svnUrl=$url"
+	yell "Svn url is [$url]"
 
 	(
 		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
-		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
-
-		# Process each Subversion URL.
-		echo >&2;
-		echo "At $(date)..." >&2;
-		echo "Processing \"$name\" repository at $url..." >&2;
-
-		#mkdir $name
-		#cd $name
-		tmp_destination="$dest-tmp";
-		destination=$dest
-		gitinit_params=""
-		gitsvn_params=""
-		
-
 		(
-			echo "Init the final bare repository at $destination" <&2
-			mkdir -p $destination
-			cd $destination
-			git init --bare $gitinit_params
+			yell "Init the final bare repository at $dest"
+			mkdir -p $dest
+			cd $dest
+			git init --bare $gitInitParams
 		)
 
-		# Clone the original Subversion repository to a temp repository.
 		(
-			mkdir -p $tmp_destination
-			echo "- Cloning repository..." >&2;
-			echo "Using authors from $authors" >&2
-			cat $authors >&2
-			#git svn clone $url --prefix=origin/ --authors-file=../namek/authors.txt --stdlayout --quiet $gitsvn_params $tmp_destination;
-			echo git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitsvn_params $tmp_destination;
-			git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitsvn_params $tmp_destination;
+			gitTmpClone="$dest-tmp";
+			yell "Clone the original Subversion repository to the temp repository $gitTmpClone using authors from 
+				$auhtors"
+			mkdir -p $gitTmpClone
+			echo git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitSvnParams $gitTmpClone;
+			git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitSvnParams $gitTmpClone;
 
-			# Create .gitignore file.
-			echo "- Converting svn:ignore properties into a .gitignore file..." >&2;
+			yell "Converting svn:ignore properties into a .gitignore file..."
 			if [[ $ignore_file != '' ]]; then
-				cp $ignore_file $tmp_destination/.gitignore;
+				cp $ignore_file $gitTmpClone/.gitignore;
 			fi
-			(
-				cd $tmp_destination;
-				git svn show-ignore --id trunk >> .gitignore;
-				git add .gitignore;
-				git commit --author="git-svn-migrate <nobody@example.org>" -m 'Convert svn:ignore properties to .gitignore.';
 
-				# Push to final bare repository and remove temp repository.
-				echo "- Pushing to new bare repository..." >&2
-				git remote add bare ../$destination
+			(
+				cd $gitTmpClone;
+				git svn show-ignore --id trunk >> .gitignore
+				
+				if [ -s .gitignore ]; then
+					git add .gitignore
+					git commit --author="nobody <nobody>" -m 'Convert svn:ignore properties to .gitignore.'
+				fi
+
+				yell "Pushing from $gitTmpClone to $dest"
+				git remote add bare ../$dest
 				git config remote.bare.push 'refs/remotes/*:refs/heads/*'
-				git push bare;
-				# Push the .gitignore commit that resides on master.
-				#git push bare master:trunk;
+				git push bare
+				git push bare master:svn/trunk
 			)
 		)
-		rm -rf $tmp_destination;
+		yell "now stop"
+		#exit 1;
 
 		(
 			# Rename Subversion's "trunk" branch to Git's standard "master" branch.
-			cd $destination
-			git branch -m svn/trunk master
-			git symbolic-ref HEAD refs/heads/master
+			cd $dest
 
+			yell "Rename svn/trunk to master"
+			git branch -m svn/trunk master
+			#git symbolic-ref HEAD refs/heads/master
+
+			
+			# For now keep them to be removed manually
 			# Remove bogus branches of the form "name@REV".
 			#git for-each-ref --format='%(refname)' refs/heads | grep '@[0-9][0-9]*' | cut -d / -f 3- |
 			#while read ref
@@ -326,108 +315,28 @@ function scmGitClone(){
 
 			#TODO replace while read with xargs?
 			# Convert git-svn tag branches to proper tags.
-echo "- Converting svn tag directories to proper git tags..." >&2;
-git for-each-ref --format='%(refname)' refs/heads/svn/tags | cut -d / -f 5 |
-while read ref
-do
-git tag -a "$ref-svn" -m "Original svn \"$ref\" tag." "refs/heads/svn/tags/$ref"
-git tag -a "$ref" -m "Original svn tag was applied to this commit \"$ref\" to a proper git tag." "refs/heads/svn/tags/$ref~1";
-git branch -D "svn/tags/$ref";
-#delte remote??
-#git push origin ":refs/heads/origin/tags/$ref"
-#git push origin tag "$ref"
-done
+			yell "Converting svn tag directories to proper git tags..."
+			git for-each-ref --format='%(refname)' refs/heads/svn/tags | cut -d / -f 5 |
+				while read ref
+				do
+					git tag -a "$ref-svn" -m "Original svn \"$ref\" tag." "refs/heads/svn/tags/$ref"
+					git tag -a "$ref" -m "Original svn tag was applied to this commit \"$ref\" to a proper git tag." "refs/heads/svn/tags/$ref~1";
+					git branch -D "svn/tags/$ref";
+				done
 
-  
+
+			#TODO git init as non bare and updateInstead. This will remove the need for a temp for ignore and will create a local checked out git (that can be used to do other things)
 			#git config receive.denyCurrentBranch updateInstead
 			#git checkout master
-
-			echo "Show all references:" >&2
+			yell "Show all references:"
 			git show-ref
-			echo "Current branches:" >&2
+			yell "Current branches:"
 			git branch -a
-			echo "Current tags:" >&2
+			yell "Current tags:"
 			git tag -l
 		)
-		echo "- Conversion completed at $(date)." >&2;
-  )
-}
-
-function scmGitCloneDeprecated(){
-    local project newSvnProjectName svnRepo svnProjectName
-    project=${1:?Project name is missing}
-	srcSvnProjectSubPath=${2:?Project svn subpath is missing}
-    newSvnProjectName=$project
-    svnProjectName=$project-svn
-	svnRepo=file://`pwd`/$project/$project
-
-    echo "[$project]$FUNCNAME> Clone [$svnRepo] with authors from [$project/authors.txt] into [$project.git]" >&2
-	(
-		cd $project
-		git svn clone $svnRepo$srcSvnProjectSubPath --prefix=origin/ --authors-file=authors.txt --stdlayout $project.git #--tags=tags --branches=branches --trunk=trunk $project.git
-		(
-			cd $project.git
-			echo "- Converting svn:ignore properties into a .gitignore file..." >&2
-			git svn show-ignore --id trunk >> .gitignore
-			git add .gitignore
-			git commit --author="git-svn-migrate <nobody@example.org>" -m 'Convert svn:ignore properties to .gitignore.'
-			
-			
-			echo "Rename Subversion's [trunk] branch to Git's standard [master] branch." >&2
-			cd $destination/$name.git;
-			git branch -m trunk master
-
-			# Remove bogus branches of the form "name@REV".
-#			git for-each-ref --format='%(refname)' refs/heads | grep '@[0-9][0-9]*' | cut -d / -f 3- | xargs -L1 git branch -D "$ref";
-#			while read ref
-#			do
-#				git branch -D "$ref";
-#			done
-
-			# Convert git-svn tag branches to proper tags.
-#			echo "- Converting svn tag directories to proper git tags..." >&2;
-#			git for-each-ref --format='%(refname)' refs/heads/tags | cut -d / -f 4 |
-#			while read ref
-#			do
-#				git tag -a "$ref" -m "Convert \"$ref\" to a proper git tag." "refs/heads/tags/$ref";
-#				git branch -D "tags/$ref";
-#			done
-		)
 	)
+	echo "- Conversion completed at $(date)." >&2;
 }
-
-function scmGitClone2Deprecated(){
-	line=${@:1}
-
-	# Check for 2-field format:  Name [tab] URL
-	name=`echo $line | awk '{print $1}'`;
-	url=`echo $line | awk '{print $2}'`;
-	# Check for simple 1-field format:  URL
-	if [[ $url == '' ]]; then
-	url=$name;
-	name=`basename $url`;
-	fi
-	scmGitClone $url authors.txt $name /
-}
-
-		#cd $project
-        #cd $project.git
-        #git remote add origin $destProjectUrl
-        
-        #if [ "$shouldPush" == 'true' ]; then
-        #    git push --set-upstream origin master
-        #fi
-#		:
-#execute with 
-# . ./migrate.sh && scmSvnDumpFilter namek /projects/namek
-
-#migrateProject mucommander https://svn.mucommander.com/mucommander/ https://github.com/raisercostin/mucommander.git
-#migrateProject namek svn://raisercostin2.synology.me/all/projects/namek projects/namek
-#scmImport namek svn://raisercostin2.synology.me/all/projects/namek
-#scmSvnDumpFilter namek /projects/namek
-#scmNewFilteredSvn namek
-
 
 scmHelp
-
-#. ./migrate.sh && (migrateProject svn://raisercostin2.synology.me/all/projects/namek namek2)
