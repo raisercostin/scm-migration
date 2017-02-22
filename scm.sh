@@ -41,11 +41,13 @@ $( cat <<-EOF_USAGE
 	    scmExplain https://svn.mucommander.com/mucommander mu
 	    scmExplain https://svn.java.net/svn/yanfs~svn yanfs
 	    scmExplain svn://raisercostin2.synology.me/all/projects/namek namek
+		scmExplain http://svn.code.sf.net/p/upnplibmobile/code/ upnplibmobile
 
 EOF_USAGE
 )
 "
 }
+
 
 
 function scmExplain(){
