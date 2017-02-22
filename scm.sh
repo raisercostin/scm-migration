@@ -74,7 +74,7 @@ $( cat <<-EOF_USAGE
 
 	B) Clone from a full local svn (faster than from a remote svn?)
 
-	scmExport $srcSvnUrl $dest' will execute the following commands:
+	scmExport $srcSvnUrl $dest
 	
 	    will execute the following:
 	        scmSvnClone $srcSvnUrl $dest-1.svn
@@ -246,25 +246,7 @@ function scmGitClone(){
 	prjRoot=${2:?prjRoot is missing. The prjRoot has the standard structure}
 	authors=${3:?authors file is missing}
 	dest=${4:?Destination is missing}
-	#url=file://`pwd`/$name$redefinedRoot
 	yell "scmGitClone $name $prjRoot $authors $dest"
-	
-	(
-		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
-
-		#scmGitClone4 $name $authors $url $dest $redefinedRoot
-		scmGitClone4 $name $prjRoot $authors $dest
-	)
-}
-
-function scmGitClone4(){
-	local name authors url dest
-	syntax="Syntax: scmGitClone <name> <prjRootWhereTrunkTagsBranchesExists> <authors> <dest>"
-	name=${1:?srcSvnUrl is missing}
-	prjRoot=${2:?prjRoot is missing. The prjRoot has the standard structure}
-	authors=${3:?authors file is missing}
-	dest=${4:?Destination is missing}
-	yell "scmGitClone4 $name $prjRoot $authors $dest"
 	
 	if [ -d $name ]; then
 		url=file://`pwd`/$name$prjRoot
@@ -274,6 +256,7 @@ function scmGitClone4(){
 	yell "svnUrl=$url"
 
 	(
+		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 		[[ ! -d $dest ]] || die Out folder [$dest] already exists.
 
 		# Process each Subversion URL.
@@ -300,6 +283,8 @@ function scmGitClone4(){
 		(
 			mkdir -p $tmp_destination
 			echo "- Cloning repository..." >&2;
+			echo "Using authors from $authors" >&2
+			cat $authors >&2
 			#git svn clone $url --prefix=origin/ --authors-file=../namek/authors.txt --stdlayout --quiet $gitsvn_params $tmp_destination;
 			echo git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitsvn_params $tmp_destination;
 			git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitsvn_params $tmp_destination;

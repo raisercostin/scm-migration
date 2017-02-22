@@ -25,3 +25,9 @@ maxence = Maxence Bernard <m4xence>
 maxence.bernard = Maxence Bernard <m4xence>
 nicolas.rinaudo = Nicolas Rinaudo <nicolas@nrinaudo.com>
 xavier = xavier <xavier>
+
+
+
+#Users found for [https://svn.java.net/svn/yanfs~svn] and lookedup in [authors-all.txt]
+httpd = httpd<httpd>
+shepler = Spencer Shepler<spencer.shepler@sun.com>
