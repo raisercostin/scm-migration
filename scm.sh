@@ -194,6 +194,7 @@ function scmSvnDumpFilter(){
 	else
 		#The svndumpfilter cannot do the job properly since is just a filter: you cannot blindly filter paths since they might be part of the final needed path.
 		#svndumpfilter --drop-empty-revs --renumber-revs include $srcSvnProjectSProjectSubPath <$svnProjectName.svndump >$svnProjectName-filtered.svndump
+		echo "./svndumpsanitizer --infile $src --outfile $dest --drop-empty --add-delete --redefine-root $redefinedRoot --include $srcSvnProjectSubPath"
 		./svndumpsanitizer --infile $src --outfile $dest --drop-empty --add-delete --redefine-root $redefinedRoot --include $srcSvnProjectSubPath 
 	fi
 }

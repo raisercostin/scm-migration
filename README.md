@@ -35,6 +35,7 @@
 
 	C) Clone from a filtered local svn (filtering can happen only localy)
 
+		scmFilteredExport <srcSvnUrl> <destPrjName> <commonPathOfAllIncludes> <includePath1> ... <includePathN>
 		scmFilterdExport https://svn.mucommander.com/mucommander /namek mu projects projects/namek projects/darzar
 
 		will execute the following:
@@ -98,9 +99,20 @@
     scmExplain https://svn.mucommander.com/mucommander mu
     scmExplain svn://raisercostin2.synology.me/all/projects/namek namek
 
+- personal
+
+    scmExplain svn://raisercostin2.synology.me/all/projects/projects/raisercostin-common/trunk raisercostin-commons
+		scmSvnClone svn://raisercostin2.synology.me/all/projects/projects/raisercostin-common/trunk raisercostin-commons-1.svn
+		scmSvnDump raisercostin-commons-1.svn raisercostin-commons-2.svndump
+		scmSvnDumpFilter raisercostin-commons-2.svndump raisercostin-commons-3.filtered-svndump "" common personal/common personal/projects/common projects/projects/common projects/projects/raisercostin-common 
+		scmSvnFilteredClone raisercostin-commons-3.filtered-svndump raisercostin-commons-4.svn
+		scmListAuthors raisercostin-commons-4.svn > raisercostin-commons-5-authors.txt
+		scmGitClone raisercostin-commons-4.svn /projects/projects/raisercostin-common raisercostin-commons-5-authors.txt raisercostin-commons-6.git
+	
 # Thanks
 
 Thank you for svndumpsanitizer.
 
 # To Do
 - farmanager cannot be exported since it contains trunk in branches: http://svn.code.sf.net/p/farmanager/code/branches/far2/test/trunk/
+- svndumpsanitizer doesn't work over deleted and readed resources
