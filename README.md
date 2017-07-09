@@ -87,6 +87,7 @@
 - https://bitbucket.org/atlassian/svn-migration-scripts/src
 - https://github.com/dsuni/svndumpsanitizer
 - http://veys.com/2010/07/24/migrating-multi-project-subversion-repositories-to-git/
+- https://miria.homelinuxserver.org/svndumpsanitizer/
 
 # Samples
 
