@@ -1,3 +1,7 @@
+# Issues
+
+- If you have in svn history a `rename` stored as a `delete` and `add` git will not detect the history passing that point.
+
 # Usage
 
 1. Initialize export functions
@@ -82,6 +86,7 @@
   - http://john.albin.net/git/convert-subversion-to-git
 - https://bitbucket.org/atlassian/svn-migration-scripts/src
 - https://github.com/dsuni/svndumpsanitizer
+- http://veys.com/2010/07/24/migrating-multi-project-subversion-repositories-to-git/
 
 # Samples
 
@@ -101,13 +106,21 @@
 
 - personal
 
-    scmExplain svn://raisercostin2.synology.me/all/projects/projects/raisercostin-common/trunk raisercostin-commons
-		scmSvnClone svn://raisercostin2.synology.me/all/projects/projects/raisercostin-common/trunk raisercostin-commons-1.svn
-		scmSvnDump raisercostin-commons-1.svn raisercostin-commons-2.svndump
-		scmSvnDumpFilter raisercostin-commons-2.svndump raisercostin-commons-3.filtered-svndump "" common personal/common personal/projects/common projects/projects/common projects/projects/raisercostin-common 
-		scmSvnFilteredClone raisercostin-commons-3.filtered-svndump raisercostin-commons-4.svn
-		scmListAuthors raisercostin-commons-4.svn > raisercostin-commons-5-authors.txt
-		scmGitClone raisercostin-commons-4.svn /projects/projects/raisercostin-common raisercostin-commons-5-authors.txt raisercostin-commons-6.git
+	# export the entire svn project since history of one project might be scattered around
+    scmExplain svn://raisercostin2.synology.me/all all
+	
+	# dump all svn
+    scmExplain svn://raisercostin2.synology.me/all all
+		scmSvnClone svn://raisercostin2.synology.me/all all-1.svn
+		scmSvnDump all-1.svn all-2.svndump
+		scmSvnDumpFilter all-2.svndump raisercostin-commons-3.filtered-svndump "" common personal/common personal/projects/common projects/projects/common projects/projects/raisercostin-common 
+		#this didn't work
+		#scmSvnDumpFilterExcluding raisercostin-commons-3.filtered-svndump raisercostin-commons-4.filtered-svndump common/trunk/trunk/bin/ common/trunk/trunk/build/ common/trunk/trunk/target/ common/trunk/trunk/CVS/ personal/projects/common/trunk/arch/
+		#this will corupt files
+		#svndumpfilter <raisercostin-commons-3.filtered-svndump >raisercostin-commons-4.filtered-svndump exclude common/trunk/trunk/bin/ common/trunk/trunk/build/ common/trunk/trunk/target/ common/trunk/trunk/CVS/ personal/projects/common/trunk/arch/
+		scmSvnFilteredClone raisercostin-commons-4.filtered-svndump raisercostin-commons-5.svn
+		scmListAuthors raisercostin-commons-5.svn > raisercostin-commons-6-authors.txt
+		scmGitClone raisercostin-commons-5.svn /projects/projects/raisercostin-common raisercostin-commons-6-authors.txt raisercostin-commons-7.git
 	
 # Thanks
 

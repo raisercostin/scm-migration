@@ -27,6 +27,7 @@ $( cat <<-EOF_USAGE
 	scmSvnClone       - clonses locally a remote svn repo
 	scmSvnDump        - dumps a local svn clone to a file using svndumpsanitizer
 	scmSvnDumpFilter  - filters an svn dump
+	scmSvnDumpFilterExclude  - filters an svn dump by excluding patterns
 	scmSvnFilteredClone - clonses locally a svn repo from an svndump
 	scmListAuthors    - lists authors from a local svn
 	scmGitClone       - clones in git from a local svn using provided authors
@@ -67,8 +68,8 @@ $( cat <<-EOF_USAGE
 	    scmRemoteSvnExport $srcSvnUrl $dest
 
 	    will execute the following:
-	        scmListAuthors $srcSvnUrl > $dest-5-authors.txt
-	        scmGitClone $srcSvnUrl / $dest-5-authors.txt $dest-6.git
+	        scmListAuthors $srcSvnUrl > $dest-6-authors.txt
+	        scmGitClone $srcSvnUrl / $dest-6-authors.txt $dest-7.git
 
 
 
@@ -78,8 +79,8 @@ $( cat <<-EOF_USAGE
 	
 	    will execute the following:
 	        scmSvnClone $srcSvnUrl $dest-1.svn
-	        scmListAuthors $dest-1.svn > $dest-5-authors.txt
-	        scmGitClone $dest-1.svn / $dest-5-authors.txt $dest-6.git
+	        scmListAuthors $dest-1.svn > $dest-6-authors.txt
+	        scmGitClone $dest-1.svn / $dest-6-authors.txt $dest-7.git
 
 	
 	
@@ -92,9 +93,10 @@ $( cat <<-EOF_USAGE
 	        scmSvnClone $srcSvnUrl $dest-1.svn
 	        scmSvnDump $dest-1.svn $dest-2.svndump
 	        scmSvnDumpFilter $dest-2.svndump $dest-3.filtered-svndump $redefinedRoot $includePaths
-	        scmSvnFilteredClone $dest-3.filtered-svndump $dest-4.svn
-	        scmListAuthors $dest-4.svn > $dest-5-authors.txt
-	        scmGitClone $dest-4.svn $prjRootWhereTrunkTagsBranchesExists $dest-5-authors.txt $dest-6.git
+	        scmSvnDumpFilterExclude $dest-3.filtered-svndump $dest-4.filtered-exclude-svndump *.class target/ bin/
+	        scmSvnFilteredClone $dest-4.filtered-exclude-svndump $dest-5.svn
+	        scmListAuthors $dest-5.svn > $dest-6-authors.txt
+	        scmGitClone $dest-5.svn $prjRootWhereTrunkTagsBranchesExists $dest-6-authors.txt $dest-7.git
 
 EOF_USAGE
 )
@@ -200,6 +202,23 @@ function scmSvnDumpFilter(){
 }
 
 
+function scmSvnDumpFilterExclude(){
+    local syntax src dest redefinedRoot srcSvnProjectSubPath
+	syntax="Syntax: scmSvnDumpFilterExclude <srcSvnDumpToFilter> <destSvnDumpFiltered> <excluding filters>"
+    src=${1:?$syntax}
+    dest=${2:?$syntax}
+    exclude="${@:3}"
+	yell "scmSvnDumpFilterExclude $src $dest $exclude"
+
+	if [ -f $dest ]; then
+		yell "Dest file [$dest] already exists."
+	else
+		echo "./svndumpsanitizer --infile $src --outfile $dest --drop-empty --add-delete --exclude $exclude"
+		./svndumpsanitizer --infile $src --outfile $dest --drop-empty --add-delete --exclude $exclude
+	fi
+}
+
+
 function scmSvnFilteredClone(){
     local syntax src dest
 	syntax="Syntax: scmSvnFilteredClone <src> <dest>"
@@ -274,6 +293,8 @@ function scmGitClone(){
 			mkdir -p $gitTmpClone
 			echo git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitSvnParams $gitTmpClone;
 			git svn clone $url --prefix=svn/ --authors-file=$authors --stdlayout $gitSvnParams $gitTmpClone;
+			#echo git svn clone $url --authors-file=$authors $gitTmpClone;
+			#git svn clone $url --authors-file=$authors $gitTmpClone;
 
 			yell "Converting svn:ignore properties into a .gitignore file..."
 			if [[ $ignore_file != '' ]]; then
@@ -337,6 +358,7 @@ function scmGitClone(){
 			git branch -a
 			yell "Current tags:"
 			git tag -l
+			#git tag|grep \-svn|xargs git tag -d
 		)
 	)
 	echo "- Conversion completed at $(date)." >&2;
