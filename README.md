@@ -4,6 +4,18 @@
 
 # Usage
 
+## Windows 10 with Ubuntu
+
+Install git
+```
+sudo apt-get install subversion
+sudo apt-get install git-svn
+. scm.sh
+scmExplain  https://svn.code.sf.net/p/javaocr/code
+```
+
+## linux
+
 1. Initialize export functions
 
 	. ./scm.sh
